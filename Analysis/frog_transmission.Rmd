@@ -1,0 +1,569 @@
+---
+title: "Lens transmission across anuran ecology"
+author: "Katie Thomas"
+date: "9/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(dplyr)
+library(ape)
+library(plotly)
+library(plyr)
+library(geiger)
+library(AmphiNom)
+
+# Markdown settings
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height = 4.5, fig.width=8)
+```
+
+# Data
+
+## Lens transmission data
+
+Species averages for T50 and %UVA, normalized to both 700nm (standard) and 450nm (to adjust for long-wavelength dropoff).
+
+```{r lens-data}
+
+#import species data for lens transmission
+lens_raw <- data.frame(read.csv("../Data/species_data.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+
+#tidy data
+lens <- lens_raw %>%
+  #put genus and species in separate columns
+  separate(species, c("genus", "species"), sep = " ", extra = "drop") %>%
+  #add genus_species
+  mutate(genus_species = as.factor(paste(genus, species, sep = "_")))
+
+```
+
+
+## Ecological trait data
+
+Ecological trait database imported here and matched to our species subset
+
+```{r trait-data}
+#import trait data
+traits_raw <- data.frame(read.csv("../Data/traits.csv", header=TRUE, na.strings=c("", "NA")))
+
+#tidy database and extract relevant columns
+traits <- traits_raw %>%
+  mutate(genus_species = as.factor(paste(traits_raw$Genus, traits_raw$Species, sep="_"))) %>%
+  distinct(genus_species, .keep_all = TRUE) %>% #remove any duplicates
+  select(genus_species, Feng_tiplabel, Adult_habitat, Activity_period, Mating_habitat, Sex_dichromatism, Pupil_shape, Larval_habitat, Life_history) 
+
+#merge lens and trait data by species name
+lens_traits <- left_join(lens, traits, by="genus_species") #dataframe where you can see original and new counts per species
+
+#find species missing trait data
+missing <- lens_traits %>%
+  filter_at(vars(Adult_habitat, Activity_period), any_vars(is.na(.)))  #find species missing habitat and/or activity period data
+
+```
+
+**Note: 17 species are missing trait data, we should try our best to fill those in for maximum power in our analyses**
+
+### Analysis subsets
+
+```{r subsets}
+
+#adults only
+lens_adults <- lens_traits %>%
+  filter(stage == "adult")
+
+#tads only
+lens_tads <- lens_traits %>%
+  filter(stage == "tadpole")
+
+#hyllodes set
+lens_hyl <- lens_traits %>%
+  filter(genus_species == "Hylodes_phyllodes")
+```
+
+### Phylogeny
+
+Here we import a full amphibian tree published by Jetz and Pyron (2019). It's important to note that this tree includes phylogenetic branches supported by molecular data as well as branches that are grafted on based on taxonomy. 
+
+```{r pryontree, fig.height=25, fig.width=8}
+
+#Import phylogeny from Jetz and Pyron 2019
+tree_orig <- read.tree(file = "../Data/amph_shl_new_Consensus_7238.tre") #reads tree
+
+```
+
+Next we must match up the species names in the tree to the species names in our dataset. Unfortunately, anuran taxonomy changes frequently and there are likely many species matches that are named differently in the tree and in our dataset. To match them up, we use the AmphiNom package by Liedtke (2019) to convert known synonyms to the taxonomy represented in Amphibian Speicies of the World (ASW). This will address the bulk of missing taxa; the remaining will need to be examined manually to match to the tree. 
+
+
+```{r name-match, fig.height=20, fig.width=20}
+
+#update AmphiNom package with most current ASW taxonomy
+##note: this is time consuming but should be redone occasionally for most updated results.
+### last update: 22 September 2020
+#getTaxonomy() 
+
+### Dataset names ------
+
+#Screen names in dataset to see how well they match up to ASW and what can be 'updated' seamlessly
+datanames.asw <- aswSync(lens_traits$genus_species)
+synonymReport(datanames.asw)
+
+#pull out all direct matches or updated ASW taxonomy
+data.update <- datanames.asw %>%
+  filter(status == "up_to_date" | status =="updated") %>%
+  mutate(genus_species = query) %>%
+  select(genus_species, ASW_names)
+
+#add column to pupil data with updated ASW names
+lens_names <- distinct(left_join(lens_traits, data.update, by = "genus_species"))
+
+#check how many species aren't being matched to ASW names
+missingASW <- lens_names %>%
+  filter(is.na(ASW_names)) %>%
+  select(genus_species, ASW_names)
+
+#add ASW manual entries
+missingASW$ASW_names[missingASW$genus_species=="Cornufer_guentheri"]<-"Cornufer_guentheri" #ambuiguous (mult. matches)
+missingASW$ASW_names[missingASW$genus_species=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" #ambuiguous (mult. matches)
+missingASW$ASW_names[missingASW$genus_species=="Sclerophrys_sp."]<-"Sclerophrys_arabica" #genus level (added random species in genus to approximate position)
+
+#merge these updated names with original data update
+data.update2 <- full_join(data.update, missingASW)
+
+#remerge with pupil data
+lens_names2 <- distinct(left_join(lens_traits, data.update2, by = "genus_species"))
+
+# check for duplicates of ASW species
+n_occur <- data.frame(table(lens_names2$genus_species))
+
+### Phylogeny names -----
+
+#Pull out tip labels from tree
+tips <- as.vector(tree_orig$tip.label)
+
+#Make a dataframe with tip vector as a column called "phylo_names"
+phylo_names <- as.data.frame(tips, optional = TRUE, stringsAsFactors = FALSE)
+colnames(phylo_names) <- "species_phylo"
+
+#Screen names in phylogeny tips to see how well they match up to ASW and what can be 'updated' seamlessly
+phylotips.asw <- aswSync(phylo_names$species_phylo)
+synonymReport(phylotips.asw)
+
+#pull out all direct matches for updated ASW taxonomy
+tip.update <- phylotips.asw %>%
+  filter(status == "up_to_date" | status =="updated") %>%
+  mutate(species_phylo = query) %>%
+  select(species_phylo, ASW_names) 
+
+#add column to phylotips with updated ASW names
+phylo_names2 <- left_join(phylo_names, tip.update, by = "species_phylo")
+
+### Find species missing from tips and dataset ----
+
+#check how many species in ASW revised dataset are not matching new tree ASW labels
+length(which(!lens_names2$ASW_names %in% phylo_names2$ASW_names))
+
+#list species that need manually checked in tree
+missing <- setdiff(lens_names2$ASW_names, phylo_names2$ASW_names)
+missing <- as.data.frame(missing, optional = TRUE, stringsAsFactors = FALSE)
+colnames(missing) <- "ASW_names" #rename col with ASW names
+missing$species_phylo <- NA #create empty col for phylo matches
+
+#add ASW phylo matches manually (note if missing from phylo)
+missing$species_phylo[missing$ASW_names=="Boana_diabolica"]<-"Hypsiboas_aguilari" #not present in phylogeny, have used temp proxy
+missing$species_phylo[missing$ASW_names=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" #unknown error
+
+#add manual matches to phylogeny ASW matches
+phylo_names3 <- phylo_names2 %>%
+  drop_na(ASW_names)
+  
+phylo_names4 <- full_join(phylo_names3, missing)
+
+#check how many species in ASW revised dataset are not matching new tree ASW labels
+missing2 <- setdiff(lens_names2$ASW_names, phylo_names4$ASW_names)
+
+#check for duplicate taxa
+n_occur <- data.frame(table(lens_names2$genus_species))
+#View(n_occur)
+
+### Match data species names with phylogeny tip labels ###
+
+#remove duplicate ASW matches from phylogeny labels
+phylo_names5 <- phylo_names4 %>%
+  distinct(ASW_names, .keep_all = TRUE) #remove any duplicates
+
+#use a left join in dplyr to match phylo tips to dataset species names
+phylo_data <- lens_names2 %>%
+  left_join(phylo_names5, by = "ASW_names") %>%
+  drop_na(species_phylo) %>% #drop species not in phylogeny
+  mutate_if(is.factor, as.character) %>%
+  distinct(ASW_names, .keep_all = TRUE) #remove any duplicates
+
+### Pruning a phylogeny to match the species in your dataset ###
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(tree_orig$tip.label, phylo_data$species_phylo)
+
+#drop unwanted tips from phylogeny
+tree.pruned <- drop.tip(phy = tree_orig, tip = drops) 
+
+#see which tips you've kept in your phylogeny
+tree.pruned$tip.label
+
+#force species_phylo to dataframe
+phylo_data <- as.data.frame(phylo_data)
+rownames(phylo_data) <- phylo_data$species_phylo
+
+#check for duplicate taxa
+n_occur <- data.frame(table(phylo_data$species_phylo))
+  
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.pruned, phylo_data)
+
+#check and reorder tree
+is.rooted(tree.pruned) #tests whether tree is rooted (want it to return "TRUE") 
+is.binary.tree(tree.pruned) #tests whether tree is dichotomous (no polytomies)
+
+#make tree dichotomous
+tree.pruned2 <- multi2di(tree.pruned)
+
+#rename tip labels from phylogeny to our species names from lens project
+tree.pruned2$tip.label <- phylo_data[["genus_species"]][match(tree.pruned2$tip.label, phylo_data[["species_phylo"]])]
+
+#rename 
+lens.tree <- ladderize(tree.pruned2) #ladderizes tree
+
+#plot your beautiful phylogeny
+plot.phylo(lens.tree, #phylogeny to plot
+           type = "fan", #how to visualize phylogeny
+           show.tip.label = TRUE, #whether to show tip labels/species names
+           cex = 1.0, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE,
+           edge.width = 1.5, #thickness of phylogeny branches
+           label.offset = 3) #how far away from tips to put labels
+```
+
+# Visualize data on the tree
+
+## Premilinary plots of data
+
+Here I plot the data and traits onto the tree so we can look at the phylogenetic distribution and see if any interesting patterns come out. 
+
+```{r phylo-lens, fig.height = 15, fig.width = 15, fig.cap = "Lens transmission and ecology across adult anurans"}
+
+# create vector of colors for pupil constriction and shape
+
+#create colors for habitat
+col_hab <- c("Aquatic" = "#0072B2",
+              "Fossorial" = "#D55E00",
+              "Ground-dwelling" = "#E69F00",
+              "Scansorial" = "#009E73",
+              "Semiaquatic" = "#56B4E9",
+              "Subfossorial" = "#CC79A7")
+
+#create vector of colors for activity period
+col_act <- c("Both" = "deeppink3",
+             "Diurnal" = "darkgoldenrod1", 
+             "Nocturnal" = "blueviolet")
+
+# Prep data and phylogeny -----
+
+#subset data for eye diameter and mass
+adult_bars <- lens_adults %>%
+  mutate(tip = genus_species, 
+         UVA700 = pUV_700norm, 
+         UVA450 = pUV_450norm, 
+         hab = Adult_habitat,
+         act = Activity_period) %>%
+  select(tip, UVA700, UVA450, hab, act)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_bars) <- adult_bars$tip
+
+#drop phylogeny tips not in dataset)
+adult.tree <- drop.tip(lens.tree, lens.tree$tip.label[!(lens.tree$tip.label %in% adult_bars$tip)])
+
+#check that phylogeny and data match exactly
+name.check(adult.tree, adult_bars)
+
+#resort trait dataset to the order of tree tip labels
+adult_bars <- adult_bars[adult.tree$tip.label, ] 
+
+#make trait vector for uva
+uva450 <- as.vector(adult_bars$UVA450) 
+
+#add tip label names to vector
+names(uva450) <- adult_bars$tip 
+
+#make trait vector for uva
+uva700 <- as.vector(adult_bars$UVA700) 
+
+#add tip label names to vector
+names(uva700) <- adult_bars$tip 
+
+#make trait vector for activity per
+act <- as.vector(adult_bars$act) 
+
+#add tip label names to vector
+names(act) <- adult_bars$tip 
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.act <- unname(col_act[act]) 
+
+#make trait vector for habitat
+hab <- as.vector(adult_bars$hab)
+
+#add tip label names to vector
+names(hab) <- adult_bars$tip
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.hab <- unname(col_hab[hab]) 
+
+
+# phylogeny of adult sampling --------
+
+#export as pdf
+pdf("../Figures/phylogeny_adults.pdf", width = 12, height = 12)
+
+#plot your beautiful phylogeny
+plot.phylo(adult.tree, #phylogeny to plot
+           type = "fan", #how to visualize phylogeny
+           show.tip.label = TRUE, #whether to show tip labels/species names
+           cex = 1.0, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE,
+           edge.width = 1.5, #thickness of phylogeny branches
+           label.offset = 3) #how far away from tips to put labels
+
+#end pdf
+dev.off()
+
+
+# phylogeny with %UVA normalized to 450 ------
+
+#export as pdf
+pdf("../Figures/phylogeny_UVA.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva450,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8)
+
+#end pdf
+dev.off()
+
+# phylogeny with %UVA normalized to 450 with activity pattern ------
+
+#export as pdf
+pdf("../Figures/phylogeny_UVAact450.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva450,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8,
+               col = tipcols.act)
+
+#end pdf
+dev.off()
+
+# phylogeny with %UVA normalized to 700 with activity pattern ------
+
+#export as pdf
+pdf("../Figures/phylogeny_UVAact700.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva700,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8,
+               col = tipcols.act)
+
+#end pdf
+dev.off()
+
+
+# Test whether act associated with %UVA ------
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+uva.act.comp <- comparative.data(phy = adult.tree, data = lens_adults %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+uva.act.comp$dropped$tips #phylogeny
+uva.act.comp$dropped$unmatched.rows #dataset
+
+#activity pattern vs. %UVA (normalized 450)
+pgls_act <- pgls(pUV_450norm ~ Activity_period, 
+               data = uva.act.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+summary(pgls_act)
+anova(pgls_act)
+
+#activity pattern vs. %UVA (normalized 700)
+pgls_act2 <- pgls(pUV_700norm ~ Activity_period, 
+               data = uva.act.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+summary(pgls_act2)
+anova(pgls_act2)
+
+# phylogeny with %UVA normalized to 450 with habitat ------
+
+#export as pdf
+pdf("../Figures/phylogeny_UVAhab450.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva450,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8,
+               col = tipcols.hab)
+
+#end pdf
+dev.off()
+
+# Test whether habitat associated with %UVA ------
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+uva.hab.comp <- comparative.data(phy = adult.tree, data = lens_adults %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+uva.hab.comp$dropped$tips #phylogeny
+uva.hab.comp$dropped$unmatched.rows #dataset
+
+#activity pattern vs. %UVA (normalized 450)
+pgls_hab <- pgls(pUV_450norm ~ Adult_habitat, 
+               data = uva.hab.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+summary(pgls_hab)
+anova(pgls_hab)
+
+# Test whether habitat associated with %UVA ------
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+
+#change habitat to scansorial vs. not
+binary_hab <- lens_adults %>%
+  mutate(binary_hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other"))
+
+#resort trait dataset to the order of tree tip labels
+rownames(binary_hab) <- binary_hab$genus_species
+binary_hab <- binary_hab[adult.tree$tip.label, ] 
+
+uva.habbi.comp <- comparative.data(phy = adult.tree, data = binary_hab %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+uva.habbi.comp$dropped$tips #phylogeny
+uva.habbi.comp$dropped$unmatched.rows #dataset
+
+#activity pattern vs. %UVA (normalized 450)
+pgls_habbi <- pgls(pUV_450norm ~ binary_hab, 
+               data = uva.habbi.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+summary(pgls_habbi)
+anova(pgls_habbi)
+
+#activity pattern vs. %UVA (normalized 700)
+pgls_habbi700 <- pgls(pUV_700norm ~ binary_hab, 
+               data = uva.habbi.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+summary(pgls_habbi700)
+anova(pgls_habbi700)
+
+# phylogeny with %UVA normalized to 450 with binary habitats ------
+
+#color vector for binary habitat
+col_habbi <- c("scansorial" = "#009E73",
+              "other" = "gray")
+
+
+#make trait vector for habitat
+habbi <- as.vector(binary_hab$binary_hab)
+
+#add tip label names to vector
+names(habbi) <- binary_hab$tip
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.habbi <- unname(col_habbi[habbi]) 
+
+
+#export as pdf
+pdf("../Figures/phylogeny_UVAhabbi450.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva450,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8,
+               col = tipcols.habbi)
+
+#plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
+#add legend for pupil constriction
+legend("topleft", legend = c("scansorial", "other"), 
+       col = col_habbi,
+       pch = 15, #shape of labels
+       cex = 2, 
+       box.lty = 0, 
+       title = "Adult habitat", 
+       title.adj = 0)
+
+#end pdf
+dev.off()
+
+#export as pdf
+pdf("../Figures/phylogeny_UVAhabbi700.pdf", width = 12, height = 12)
+
+#plot phylogeny
+plotTree.wBars(adult.tree, uva700,
+               scale = 3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.8,
+               col = tipcols.habbi)
+
+#end pdf
+dev.off()
+
+### testing other variables --------
+
+#Sexual dichromatism
+#activity pattern vs. %UVA (normalized 450)
+pgls_sd <- pgls(pUV_450norm ~ Sex_di, 
+               data = uva.hab.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+summary(pgls_hab)
+anova(pgls_hab)
+
+
+```
+
+
+
