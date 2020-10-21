@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "9/27/2020"
+date: "21 OCT 2020"
 output: html_document
 ---
 
@@ -41,7 +41,7 @@ lens <- lens_raw %>%
 
 ## Ecological trait data
 
-Ecological trait database imported here and matched to our species subset
+Ecological trait database imported here and matched to our species subset. In the original trait database used for other projects, Adult Habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, it is collapsed into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, it would make sense to make it binary (regularly active during day or not) to test whether dirunal activity correlates with lens transmission. However, I think this necessitates going through each species originally assigned to the "both" category to see what makes sense. For example, something crepuscularly active might be categorized as "both", but not necessarily active in daylight, while something found out often at both noon and midnight would clearly be exposed to bright daylight. 
 
 ```{r trait-data}
 #import trait data
@@ -53,16 +53,36 @@ traits <- traits_raw %>%
   distinct(genus_species, .keep_all = TRUE) %>% #remove any duplicates
   select(genus_species, Feng_tiplabel, Adult_habitat, Activity_period, Mating_habitat, Sex_dichromatism, Pupil_shape, Larval_habitat, Life_history) 
 
-#merge lens and trait data by species name
-lens_traits <- left_join(lens, traits, by="genus_species") #dataframe where you can see original and new counts per species
+#convert to binary traits
+traits_bin <- traits %>%
+  mutate(binary_hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other")) %>%
+  mutate(Activity_period = na_if(Activity_period, "Unknown")) %>%
+  mutate(Sex_dichromatism = na_if(Sex_dichromatism, "Unknown")) %>%
+  select(genus_species, binary_hab, Activity_period, Sex_dichromatism) 
 
-#find species missing trait data
-missing <- lens_traits %>%
-  filter_at(vars(Adult_habitat, Activity_period), any_vars(is.na(.)))  #find species missing habitat and/or activity period data
+#merge lens and trait data by species name
+lens_traits <- left_join(lens, traits_bin, by="genus_species") 
+
+#export species with trait data (for colleagues)
+#write.csv(lens_traits, file = "lens_trait_holes.csv")
 
 ```
 
-**Note: 17 species are missing trait data, we should try our best to fill those in for maximum power in our analyses**
+We additionally looked at what trait data we had for the species published in Yavonovich et al. 2020 (all species in their paper were current ASW names, checked 21 oct 2020)
+
+```{r}
+
+#import species data for lens transmission
+lens_yav <- data.frame(read.csv("../Data/yovanovich_species.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+colnames(lens_yav) <- "genus_species"
+
+#merge lens and trait data by species name
+lens_traits_yav <- left_join(lens_yav, traits_bin, by="genus_species") 
+
+#export
+write.csv(lens_traits_yav, file = "lens_trait_yav.csv")
+
+```
 
 ### Analysis subsets
 
