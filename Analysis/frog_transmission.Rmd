@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "21 OCT 2020"
+date: "10 DEC 2020"
 output: html_document
 ---
 
@@ -20,9 +20,9 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height
 
 # Data
 
-## Lens transmission data
+## This study
 
-Species averages for T50 and %UVA, normalized to both 700nm (standard) and 450nm (to adjust for long-wavelength dropoff).
+Lens data collected from frozen and thawed lenses in this study. 
 
 ```{r lens-data}
 
@@ -30,57 +30,71 @@ Species averages for T50 and %UVA, normalized to both 700nm (standard) and 450nm
 lens_raw <- data.frame(read.csv("../Data/species_data.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
 
 #tidy data
-lens <- lens_raw %>%
+lens_data <- lens_raw %>%
   #put genus and species in separate columns
   separate(species, c("genus", "species"), sep = " ", extra = "drop") %>%
   #add genus_species
-  mutate(genus_species = as.factor(paste(genus, species, sep = "_")))
+  mutate(genus_species = as.factor(paste(genus, species, sep = "_"))) %>%
+  mutate(dataset = "this_study") %>%
+  mutate(source = "this_study") %>%
+  mutate(scanned = "frozen lens") %>%
+  select(order, family, genus_species, stage, dataset, source, diam_mm, t450nm, t50, pUVA)
 
+```
+
+## Compiled from literature
+
+Lenses measured fresh in previous published literature. Note that for _Bombina orientalis_ the T50% was <300nm. To be able to include it here, I have set it at 300 so that it is numerical and can be included in models and visuals. 
+
+```{r lens-data-lit}
+
+#import species data for lens transmission
+lens_lit_raw <- data.frame(read.csv("../Data/yovanovich_species.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+
+#tidy data
+lens_lit <- lens_lit_raw %>%
+  mutate(genus_species = as.factor(species)) %>%
+  mutate(t50 = as.numeric(replace(t50, t50=="<300", 300))) %>%
+  mutate(t450nm = t450nm*100) %>%
+  mutate(source = "literature") %>%
+  mutate(stage = "unknown") %>%
+  mutate(diam_mm = "unknown") %>%
+  select(order, family, genus_species, stage, dataset, source, diam_mm, t450nm, t50, pUVA)
+```
+
+## Merged data
+
+Merge datasets and view sampling
+
+```{r merge-data}
+
+#merge new and published datasets 
+lenses <-full_join(lens_data, lens_lit) 
 ```
 
 
 ## Ecological trait data
 
-Ecological trait database imported here and matched to our species subset. In the original trait database used for other projects, Adult Habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, it is collapsed into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, it would make sense to make it binary (regularly active during day or not) to test whether dirunal activity correlates with lens transmission. However, I think this necessitates going through each species originally assigned to the "both" category to see what makes sense. For example, something crepuscularly active might be categorized as "both", but not necessarily active in daylight, while something found out often at both noon and midnight would clearly be exposed to bright daylight. 
+Ecological trait database imported here and matched to our species subset. In the original trait database used for other projects, adult habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurunal activity correlates with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
 
 ```{r trait-data}
 #import trait data
-traits_raw <- data.frame(read.csv("../Data/traits.csv", header=TRUE, na.strings=c("", "NA")))
+traits_raw <- data.frame(read.csv("../Data/lens_traits.csv", header=TRUE, na.strings=c("", "NA")))
 
-#tidy database and extract relevant columns
+#convert to binary traits and extract relevent columns
 traits <- traits_raw %>%
-  mutate(genus_species = as.factor(paste(traits_raw$Genus, traits_raw$Species, sep="_"))) %>%
-  distinct(genus_species, .keep_all = TRUE) %>% #remove any duplicates
-  select(genus_species, Feng_tiplabel, Adult_habitat, Activity_period, Mating_habitat, Sex_dichromatism, Pupil_shape, Larval_habitat, Life_history) 
-
-#convert to binary traits
-traits_bin <- traits %>%
-  mutate(binary_hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other")) %>%
+  mutate(hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other")) %>%
   mutate(Activity_period = na_if(Activity_period, "Unknown")) %>%
+  mutate(act = recode_factor(Activity_period, "Both" = "nondiurnal", "Diurnal" = "diurnal", "Nocturnal" = "nondiurnal")) %>%
   mutate(Sex_dichromatism = na_if(Sex_dichromatism, "Unknown")) %>%
-  select(genus_species, binary_hab, Activity_period, Sex_dichromatism) 
+  mutate (dich = recode_factor(Sex_dichromatism, "Absent" = "nondichromatic", "Present" = "dichromatic")) %>%
+  select(genus_species, hab, act, dich) 
 
 #merge lens and trait data by species name
 lens_traits <- left_join(lens, traits_bin, by="genus_species") 
 
 #export species with trait data (for colleagues)
 #write.csv(lens_traits, file = "lens_trait_holes.csv")
-
-```
-
-We additionally looked at what trait data we had for the species published in Yavonovich et al. 2020 (all species in their paper were current ASW names, checked 21 oct 2020)
-
-```{r}
-
-#import species data for lens transmission
-lens_yav <- data.frame(read.csv("../Data/yovanovich_species.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
-colnames(lens_yav) <- "genus_species"
-
-#merge lens and trait data by species name
-lens_traits_yav <- left_join(lens_yav, traits_bin, by="genus_species") 
-
-#export
-write.csv(lens_traits_yav, file = "lens_trait_yav.csv")
 
 ```
 
