@@ -7,12 +7,16 @@ output: html_document
 
 ```{r setup, include=FALSE}
 library(tidyverse)
+library(knitr)
+library(kableExtra)
 library(dplyr)
 library(ape)
 library(plotly)
 library(plyr)
 library(geiger)
+library(phytools)
 library(AmphiNom)
+library(cowplot)
 
 # Markdown settings
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height = 4.5, fig.width=8)
@@ -20,7 +24,9 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height
 
 # Data
 
-## This study
+## Lens transmission data
+
+### This study
 
 Lens data collected from frozen and thawed lenses in this study. 
 
@@ -42,7 +48,7 @@ lens_data <- lens_raw %>%
 
 ```
 
-## Compiled from literature
+### Compiled from literature
 
 Lenses measured fresh in previous published literature. Note that for _Bombina orientalis_ the T50% was <300nm. To be able to include it here, I have set it at 300 so that it is numerical and can be included in models and visuals. 
 
@@ -62,7 +68,7 @@ lens_lit <- lens_lit_raw %>%
   select(order, family, genus_species, stage, dataset, source, diam_mm, t450nm, t50, pUVA)
 ```
 
-## Merged data
+### Merged data
 
 Merge datasets and view sampling
 
@@ -70,12 +76,28 @@ Merge datasets and view sampling
 
 #merge new and published datasets 
 lenses <-full_join(lens_data, lens_lit) 
-```
 
+#compile number of frogs sampled by species
+samps <- lenses %>%
+  arrange(genus_species) %>%
+  arrange(family) %>%
+  arrange(order) %>%
+  select(order, family, genus_species, source, t50, pUVA)
+
+#create table column names
+names(samps) <- c("Order","Family", "Species", "Data source", "T50%", "%UVA") 
+
+#generate scrolling table in RMarkdown
+kable(samps[ , c("Order","Family", "Species", "Data source", "T50%", "%UVA")], 
+      caption = "Species sampled and transmission summary data") %>%
+  kable_styling(full_width = F) %>% 
+  collapse_rows(columns = c(1,2), valign = "top") %>%
+  scroll_box(height = "600px") 
+```
 
 ## Ecological trait data
 
-Ecological trait database imported here and matched to our species subset. In the original trait database used for other projects, adult habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurunal activity correlates with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
+Ecological trait database imported here and matched to the species in the dataset. In the original trait database used for other projects, adult habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurnal activity correlates with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
 
 ```{r trait-data}
 #import trait data
@@ -91,49 +113,31 @@ traits <- traits_raw %>%
   select(genus_species, hab, act, dich) 
 
 #merge lens and trait data by species name
-lens_traits <- left_join(lens, traits_bin, by="genus_species") 
-
-#export species with trait data (for colleagues)
-#write.csv(lens_traits, file = "lens_trait_holes.csv")
-
+lens_traits <- left_join(lenses, traits, by="genus_species") 
 ```
 
-### Analysis subsets
-
-```{r subsets}
-
-#adults only
-lens_adults <- lens_traits %>%
-  filter(stage == "adult")
-
-#tads only
-lens_tads <- lens_traits %>%
-  filter(stage == "tadpole")
-
-#hyllodes set
-lens_hyl <- lens_traits %>%
-  filter(genus_species == "Hylodes_phyllodes")
-```
 
 ### Phylogeny
 
-Here we import a full amphibian tree published by Jetz and Pyron (2019). It's important to note that this tree includes phylogenetic branches supported by molecular data as well as branches that are grafted on based on taxonomy. 
+Here we import a full amphibian tree phylogenetic hypothesis by Jetz and Pyron (2019). It's important to note that this tree includes branches supported by molecular data as well as branches that are grafted on based exclusively on taxonomy. 
 
-```{r pryontree, fig.height=25, fig.width=8}
+```{r pryontree, fig.height=50, fig.width=8}
 
 #Import phylogeny from Jetz and Pyron 2019
 tree_orig <- read.tree(file = "../Data/amph_shl_new_Consensus_7238.tre") #reads tree
 
+#Test whether tree is rooted
+is.rooted(tree_orig)
 ```
 
 Next we must match up the species names in the tree to the species names in our dataset. Unfortunately, anuran taxonomy changes frequently and there are likely many species matches that are named differently in the tree and in our dataset. To match them up, we use the AmphiNom package by Liedtke (2019) to convert known synonyms to the taxonomy represented in Amphibian Speicies of the World (ASW). This will address the bulk of missing taxa; the remaining will need to be examined manually to match to the tree. 
 
 
-```{r name-match, fig.height=20, fig.width=20}
+```{r name-match, cache = TRUE, results="hide"}
 
 #update AmphiNom package with most current ASW taxonomy
-##note: this is time consuming but should be redone occasionally for most updated results.
-### last update: 22 September 2020
+##note: this is time consuming but should be redone periodically for most updated results.
+### last update: 10 December 2020
 #getTaxonomy() 
 
 ### Dataset names ------
@@ -148,7 +152,7 @@ data.update <- datanames.asw %>%
   mutate(genus_species = query) %>%
   select(genus_species, ASW_names)
 
-#add column to pupil data with updated ASW names
+#add column to lens data with updated ASW names
 lens_names <- distinct(left_join(lens_traits, data.update, by = "genus_species"))
 
 #check how many species aren't being matched to ASW names
@@ -156,19 +160,16 @@ missingASW <- lens_names %>%
   filter(is.na(ASW_names)) %>%
   select(genus_species, ASW_names)
 
-#add ASW manual entries
+#add ASW manual entries after checking species
 missingASW$ASW_names[missingASW$genus_species=="Cornufer_guentheri"]<-"Cornufer_guentheri" #ambuiguous (mult. matches)
 missingASW$ASW_names[missingASW$genus_species=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" #ambuiguous (mult. matches)
-missingASW$ASW_names[missingASW$genus_species=="Sclerophrys_sp."]<-"Sclerophrys_arabica" #genus level (added random species in genus to approximate position)
+missingASW$ASW_names[missingASW$genus_species=="Cynops_pyrrhogaster"]<-"Cynops_pyrrhogaster" #ambiguous (mult. matches)
 
 #merge these updated names with original data update
 data.update2 <- full_join(data.update, missingASW)
 
 #remerge with pupil data
 lens_names2 <- distinct(left_join(lens_traits, data.update2, by = "genus_species"))
-
-# check for duplicates of ASW species
-n_occur <- data.frame(table(lens_names2$genus_species))
 
 ### Phylogeny names -----
 
@@ -181,6 +182,8 @@ colnames(phylo_names) <- "species_phylo"
 
 #Screen names in phylogeny tips to see how well they match up to ASW and what can be 'updated' seamlessly
 phylotips.asw <- aswSync(phylo_names$species_phylo)
+
+#view summary
 synonymReport(phylotips.asw)
 
 #pull out all direct matches for updated ASW taxonomy
@@ -203,9 +206,21 @@ missing <- as.data.frame(missing, optional = TRUE, stringsAsFactors = FALSE)
 colnames(missing) <- "ASW_names" #rename col with ASW names
 missing$species_phylo <- NA #create empty col for phylo matches
 
-#add ASW phylo matches manually (note if missing from phylo)
-missing$species_phylo[missing$ASW_names=="Boana_diabolica"]<-"Hypsiboas_aguilari" #not present in phylogeny, have used temp proxy
-missing$species_phylo[missing$ASW_names=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" #unknown error
+#add ASW phylo matches manually 
+
+#Add Lissotriton vulgaris (was ambiguous match)
+missing$species_phylo[missing$ASW_names=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" 
+
+#Add Cynops pyrrhogaster (was ambiguous match)
+missing$species_phylo[missing$ASW_names=="Cynops_pyrrhogaster"]<-"Cynops_pyrrhogaster" 
+
+#Add Lithobates pipiens
+missing$species_phylo[missing$ASW_names=="Lithobates_pipiens"]<-"Rana_pipiens" 
+
+#Boana diabolica is missing from phylogeny and will have to be grafted in as a sister taxon to Boana geographica (according to Caminer and Ron 2020)) later
+# Adding it here as placeholder now. 
+missing$species_phylo[missing$ASW_names=="Boana_diabolica"]<-"Boana_diabolica" #ambiguous (mult. matches)
+
 
 #add manual matches to phylogeny ASW matches
 phylo_names3 <- phylo_names2 %>%
@@ -244,32 +259,43 @@ tree.pruned <- drop.tip(phy = tree_orig, tip = drops)
 #see which tips you've kept in your phylogeny
 tree.pruned$tip.label
 
+#rename tips to ASW names
+tree.pruned$tip.label <- phylo_data[["ASW_names"]][match(tree.pruned$tip.label, phylo_data[["species_phylo"]])]
+
 #force species_phylo to dataframe
 phylo_data <- as.data.frame(phylo_data)
-rownames(phylo_data) <- phylo_data$species_phylo
+rownames(phylo_data) <- phylo_data$ASW_names
 
-#check for duplicate taxa
-n_occur <- data.frame(table(phylo_data$species_phylo))
-  
 #check that phylogeny tips and data match exactly (if they match will return "OK")
 name.check(tree.pruned, phylo_data)
 
 #check and reorder tree
 is.rooted(tree.pruned) #tests whether tree is rooted (want it to return "TRUE") 
-is.binary.tree(tree.pruned) #tests whether tree is dichotomous (no polytomies)
+
+#Test whether tree is ultrametric
+is.ultrametric(tree.pruned)
+
+#Force tree to be ultrametric (it should be)
+tree_edit <- force.ultrametric(tree.pruned)
+
+#Boana diabolica is missing from phylogeny and will be grafted in as a polytomy based on the genus
+tree_add <- add.species.to.genus(tree_edit, "Boana_diabolica", where = "root")
+
+#test whether tree is dichotomous (no polytomies)
+is.binary.tree(tree_add) 
 
 #make tree dichotomous
-tree.pruned2 <- multi2di(tree.pruned)
+tree_add2 <- multi2di(tree_add)
 
-#rename tip labels from phylogeny to our species names from lens project
-tree.pruned2$tip.label <- phylo_data[["genus_species"]][match(tree.pruned2$tip.label, phylo_data[["species_phylo"]])]
+#ladderize 
+lens.tree <- ladderize(tree_add2) #ladderizes tree
+```
 
-#rename 
-lens.tree <- ladderize(tree.pruned2) #ladderizes tree
 
-#plot your beautiful phylogeny
+```{r plot-phylo, fig.height = 10, fig.width = 4}
+#plot phylogeny
 plot.phylo(lens.tree, #phylogeny to plot
-           type = "fan", #how to visualize phylogeny
+           type = "phylogram", #how to visualize phylogeny
            show.tip.label = TRUE, #whether to show tip labels/species names
            cex = 1.0, #text size
            no.margin = TRUE, 
@@ -278,7 +304,299 @@ plot.phylo(lens.tree, #phylogeny to plot
            label.offset = 3) #how far away from tips to put labels
 ```
 
-# Visualize data on the tree
+# Visualize data
+
+## Analysis subsets
+
+Here, we subset three groups for visualization and analyses by life stage and dataset: adults (includes our adult data and all published literature data), tadpoles (our data only), a pair of _Hyllodes phyllodes_, one juvenile and one adult that showed different strengths of UV filtering, likely due to the size of the frog/lens resulting in differences in path length of the light, and a tadpole/adult pair of _Alytes muletensis_ (our only tad/adult match in the dataset).
+
+```{r subsets}
+
+#make dataframe to match ASW names/tip labels to full lens dataframe
+dat.names <- phylo_data %>%
+  select(genus_species, ASW_names)
+
+#match phylogeny tip labels (ASW names) with lens dataframe
+lenses.phy <- left_join(lens_traits, dat.names, by = "genus_species")
+  
+#adults only
+lens_adults <- lenses.phy %>%
+  filter(stage %in% c("adult", "unknown"))
+
+#adults-this study
+lens_adults.new <- lens_adults %>% 
+  filter(source == "this_study")
+
+#adults-literature
+lens_adults.pub <- lens_adults %>% 
+  filter(source == "literature")
+
+#tads only
+lens_tads <- lenses.phy %>%
+  filter(stage == "tadpole")
+
+#hyllodes set
+lens_hyl <- lenses.phy %>%
+  filter(genus_species == "Hylodes_phyllodes")
+
+#tad/adult match
+lens_dev <- lenses.phy %>%
+  filter(genus_species == "Alytes_muletensis")
+```
+
+## Plot of adult sampling onto phylogeny
+
+```{r, fig.height=10, fig.width=5, fig.caption = "Phylogeny showing adult lens data (T50 wavelength) and ecological traits. The first (non italicized) column shows our T50 measurements for adults, the second (italicized) column shows T50 values calculated from data in published literature, green triangles show scansoriality, yellow circles show diurnality, and blue squares show sexual dichromatism."}
+
+# prep data -----
+
+#create dataframe of adults with this paper and lit data in two separate columns
+
+#our data
+new_cols <- lens_adults.new %>%
+  mutate(t450nm_new = t450nm) %>%
+  mutate(t50_new = t50) %>%
+  mutate(pUVA_new = pUVA) %>%
+  select(ASW_names, t450nm_new, t50_new, pUVA_new, hab, act, dich)
+
+#published data
+lit_cols <- lens_adults.pub %>%
+  mutate(t450nm_lit = t450nm) %>%
+  mutate(t50_lit = t50) %>%
+  mutate(pUVA_lit = pUVA) %>%
+  select(ASW_names, t450nm_lit, t50_lit, pUVA_lit, hab, act, dich)
+
+#merge
+adults_sep <- full_join(new_cols, lit_cols, by = c("ASW_names", "hab", "act", "dich"))
+
+#prune tree to adult data -----
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, adults_sep$ASW_names)
+
+#drop unwanted tips from phylogeny
+tree.adults <- drop.tip(phy = lens.tree, tip = drops) 
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults, phylo_data)
+
+#resort dataset to the order of tree tip labels
+rownames(adults_sep) <- adults_sep$ASW_names
+adults_sep <- adults_sep[tree.adults$tip.label, ] 
+
+
+#plot phylogeny with sampling tip labels ----
+
+#phylogeny
+plot.phylo(tree.adults, 
+           type = "phylogram", 
+           show.tip.label = TRUE, 
+           cex = 0.7, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE, 
+           edge.width = 2,
+           label.offset = 80) 
+
+#add tip labels for our data
+tiplabels(adults_sep$t50_new,
+          cex = 0.6,
+          frame = "none",
+          bg = "white",
+          offset = 15) #size of labels
+
+#add tip labels for published data
+tiplabels(adults_sep$t50_lit,
+          cex = 0.6,
+          font = 3, 
+          frame = "none",
+          bg = "white",
+          offset = 35) #size of labels
+
+#add tip labels for scansorial/not
+tiplabels(col = c("#009E73","grey95")[adults_sep$hab], #sets color habitat
+          pch = 17,
+          cex = 0.8,
+          offset = 50) 
+
+#add tip labels for diurnal/not
+tiplabels(col = c("grey95","#F0E442")[adults_sep$act], #sets color habitat
+          pch = 19,
+          cex = 0.8,
+          offset = 60) 
+
+#add tip labels for sexually dimorphic/not
+tiplabels(col = c("grey95","#56B4E9")[adults_sep$dich], #sets color habitat
+          pch = 15,
+          cex = 0.8,
+          offset = 70) 
+
+#export pdf
+
+#pdf
+pdf("../Figures/phylogeny_summary.pdf", width = 6, height = 11)
+
+#phylogeny
+plot.phylo(tree.adults, 
+           type = "phylogram", 
+           show.tip.label = TRUE, 
+           cex = 0.6, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE, 
+           edge.width = 2,
+           label.offset = 80) 
+
+#add tip labels for our data
+tiplabels(adults_sep$t50_new,
+          cex = 0.6,
+          frame = "none",
+          bg = "white",
+          offset = 15) #size of labels
+
+#add tip labels for published data
+tiplabels(adults_sep$t50_lit,
+          cex = 0.6,
+          font = 3, 
+          frame = "none",
+          bg = "white",
+          offset = 35) #size of labels
+
+#add tip labels for scansorial/not
+tiplabels(col = c("#009E73","grey95")[adults_sep$hab], #sets color habitat
+          pch = 17,
+          cex = 0.8,
+          offset = 50) 
+
+#add tip labels for diurnal/not
+tiplabels(col = c("grey95","#F0E442")[adults_sep$act], #sets color habitat
+          pch = 19,
+          cex = 0.8,
+          offset = 60) 
+
+#add tip labels for sexually dimorphic/not
+tiplabels(col = c("grey95","#56B4E9")[adults_sep$dich], #sets color habitat
+          pch = 15,
+          cex = 0.8,
+          offset = 70) 
+
+dev.off()
+
+```
+
+### May try to re-build this plot in ggtree so I can color boxes by amount of filtering (closer to 500 = more yellow)
+
+To save time, not attempting this now. 
+
+```{r, fig.height=8, fig.width=4, include = FALSE}
+
+## Try this in ggtree to get continuous fill of tiplabels
+
+library(ggimage)
+library(ggtree)
+
+
+ggtree(lens.tree, ladderize = TRUE) +
+  geom_tiplab()
+```
+
+## Plots of T50 and %UVA values across states
+
+```{r boxplots-eco}
+
+# Scansoriality ------
+
+# boxplot of T50 across habs
+boxplot_habs.t50 <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Scansoriality") +
+  ylab("T50 wavelength (nm)") +
+  labs(fill = "Data source")
+
+# boxplot of %UVA across habs
+boxplot_habs.uva <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Scansoriality") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+# Diurnality ------
+
+# boxplot of T50 across habs
+boxplot_act.t50 <- ggplot(data = lens_adults, 
+                       aes(x = act, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Diurnality") +
+  ylab("T50 wavelength (nm)") +
+  labs(fill = "Data source")
+
+# boxplot of %UVA across habs
+boxplot_act.uva <- ggplot(data = lens_adults, 
+                       aes(x = act, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Diurnality") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_act.t50, boxplot_act.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+
+# Sexual dichromatism ------
+
+# boxplot of T50 across habs
+boxplot_dich.t50 <- ggplot(data = lens_adults, 
+                       aes(x = dich, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Sexual dichromatism") +
+  ylab("T50 wavelength (nm)") +
+  labs(fill = "Data source")
+
+# boxplot of %UVA across habs
+boxplot_dich.uva <- ggplot(data = lens_adults, 
+                       aes(x = dich, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  xlab("Sexual dichromatism") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_dich.t50, boxplot_dich.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+```
+
+
+# Comparative evolutionary models
 
 ## Premilinary plots of data
 
