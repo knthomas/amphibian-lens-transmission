@@ -1,25 +1,38 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "10 DEC 2020"
-output: html_document
+date: "31 Dec 2020"
+output:
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    code_fold: hide
+editor_options: 
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse)
+
 library(knitr)
 library(kableExtra)
-library(dplyr)
+library(grid)
+library(gtable)
+library(ggtree)
 library(ape)
 library(plotly)
 library(plyr)
 library(geiger)
+library(caper)
 library(phytools)
 library(AmphiNom)
 library(cowplot)
+library(tidyverse)
+library(dplyr)
 
-# Markdown settings
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height = 4.5, fig.width=8)
+#set rmarkdown options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.height = 5, fig.width = 8, attr.output='style="max-height: 350px;"') 
+
 ```
 
 # Data
@@ -28,7 +41,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.height
 
 ### This study
 
-Lens data collected from frozen and thawed lenses in this study. 
+Lens data were collected from frozen and then thawed lenses in this study. The data span two orders (Anura and Caudata), 29 families, 62 genera, and 86 species. Most data are from post-metamorphic frogs, but we also have data on two tadpoles.
 
 ```{r lens-data}
 
@@ -44,18 +57,18 @@ lens_data <- lens_raw %>%
   mutate(dataset = "this_study") %>%
   mutate(source = "this_study") %>%
   mutate(scanned = "frozen lens") %>%
-  select(order, family, genus_species, stage, dataset, source, diam_mm, t450nm, t50, pUVA)
+  select(order, family, genus_species, stage, dataset, source, diam_mm, approx_size, t450nm, t50, pUVA)
 
 ```
 
 ### Compiled from literature
 
-Lenses measured fresh in previous published literature. Note that for _Bombina orientalis_ the T50% was <300nm. To be able to include it here, I have set it at 300 so that it is numerical and can be included in models and visuals. 
+Lens transmission data measured from fresh anuran lenses were gathered from previously published literature.  Note that for _Bombina orientalis_ the T50% was <300nm. To be able to include it here, I have set it at 300 so that it is numerical and can be included in models and visuals. These data span 14 families, 28 genera,  and 37 species (all post-metamorphic frogs). 
 
 ```{r lens-data-lit}
 
 #import species data for lens transmission
-lens_lit_raw <- data.frame(read.csv("../Data/yovanovich_species.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+lens_lit_raw <- data.frame(read.csv("../Data/published_data.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
 
 #tidy data
 lens_lit <- lens_lit_raw %>%
@@ -70,7 +83,7 @@ lens_lit <- lens_lit_raw %>%
 
 ### Merged data
 
-Merge datasets and view sampling
+Data from our study and previous studies were merged for comparative analyses. Combined, they cover two orders, 32 families, 76 genera, and 116 species. There was overlap in data (our study and in published literature) for 8 species.  
 
 ```{r merge-data}
 
@@ -97,7 +110,7 @@ kable(samps[ , c("Order","Family", "Species", "Data source", "T50%", "%UVA")],
 
 ## Ecological trait data
 
-Ecological trait database imported here and matched to the species in the dataset. In the original trait database used for other projects, adult habitat is categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurnal activity correlates with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
+Ecological data for each species was imported and matched to the species in the lens transmission dataset. In the original trait database used for other projects, adult habitat was categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurnal activity is associated with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
 
 ```{r trait-data}
 #import trait data
@@ -119,9 +132,9 @@ lens_traits <- left_join(lenses, traits, by="genus_species")
 
 ### Phylogeny
 
-Here we import a full amphibian tree phylogenetic hypothesis by Jetz and Pyron (2019). It's important to note that this tree includes branches supported by molecular data as well as branches that are grafted on based exclusively on taxonomy. 
+We used the amphibian phylogenetic hypothesis by Jetz and Pyron (2019). It's important to note that this tree includes branches supported by molecular data as well as branches that are grafted on based exclusively on taxonomy, and has many polytomies. Because we need a dichotomous tree for comparative analyses, we randomly resolved polytomies using the multi2di function in ape v.5.4.1. 
 
-```{r pryontree, fig.height=50, fig.width=8}
+```{r pyrontree, results = "hide"}
 
 #Import phylogeny from Jetz and Pyron 2019
 tree_orig <- read.tree(file = "../Data/amph_shl_new_Consensus_7238.tre") #reads tree
@@ -130,8 +143,7 @@ tree_orig <- read.tree(file = "../Data/amph_shl_new_Consensus_7238.tre") #reads 
 is.rooted(tree_orig)
 ```
 
-Next we must match up the species names in the tree to the species names in our dataset. Unfortunately, anuran taxonomy changes frequently and there are likely many species matches that are named differently in the tree and in our dataset. To match them up, we use the AmphiNom package by Liedtke (2019) to convert known synonyms to the taxonomy represented in Amphibian Speicies of the World (ASW). This will address the bulk of missing taxa; the remaining will need to be examined manually to match to the tree. 
-
+We matched up the species names in the tree to the species names in our dataset by converting both species list to Frost's taxonomy from Amphibian Species of the World (ASW). Anuran taxonomy changes frequently and there are likely some species  that are named differently in the tree vs. in our datasets. To match them up, we use the AmphiNom package by Liedtke (2019) to convert known synonyms to the taxonomy represented in Amphibian Speicies of the World (ASW). This addressed the bulk of the taxa; the remaining we examined and matched manually. 
 
 ```{r name-match, cache = TRUE, results="hide"}
 
@@ -292,7 +304,7 @@ lens.tree <- ladderize(tree_add2) #ladderizes tree
 ```
 
 
-```{r plot-phylo, fig.height = 10, fig.width = 4}
+```{r plot-phylo, fig.height = 20, fig.width = 8, fig.cap="Phylogeny from Jetz and Pyron (2019), pruned to the taxa in our study and re-named so that species match taxonomy on ASW."}
 #plot phylogeny
 plot.phylo(lens.tree, #phylogeny to plot
            type = "phylogram", #how to visualize phylogeny
@@ -304,11 +316,9 @@ plot.phylo(lens.tree, #phylogeny to plot
            label.offset = 3) #how far away from tips to put labels
 ```
 
-# Visualize data
+### Analysis subsets
 
-## Analysis subsets
-
-Here, we subset three groups for visualization and analyses by life stage and dataset: adults (includes our adult data and all published literature data), tadpoles (our data only), a pair of _Hyllodes phyllodes_, one juvenile and one adult that showed different strengths of UV filtering, likely due to the size of the frog/lens resulting in differences in path length of the light, and a tadpole/adult pair of _Alytes muletensis_ (our only tad/adult match in the dataset).
+We subset three groups for visualization and analyses by life stage and dataset: adults (includes our adult data and all published literature data), tadpoles (our data only), a pair of _Hyllodes phyllodes_, one juvenile and one adult that showed different strengths of UV filtering, likely due to the size of the frog/lens resulting in differences in path length of the light, and a tadpole/adult pair of _Alytes muletensis_ (our only tad/adult match in the dataset).
 
 ```{r subsets}
 
@@ -344,9 +354,320 @@ lens_dev <- lenses.phy %>%
   filter(genus_species == "Alytes_muletensis")
 ```
 
-## Plot of adult sampling onto phylogeny
 
-```{r, fig.height=10, fig.width=5, fig.caption = "Phylogeny showing adult lens data (T50 wavelength) and ecological traits. The first (non italicized) column shows our T50 measurements for adults, the second (italicized) column shows T50 values calculated from data in published literature, green triangles show scansoriality, yellow circles show diurnality, and blue squares show sexual dichromatism."}
+# Lens transmission vs. lens size
+
+Here, we plot lambda T50 vs. log lens diameter among all adults in our dataset (not including any data gathered from the literature, as lens size was not reported for those specimens) and run a PGLS regression to test for a relationship.
+
+```{r}
+
+#PGLS models for t50 or %UVA vs. lens diameter among species
+
+#### prep data ####
+
+#Make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, as.character(lens_adults.new$ASW_names))
+
+#Drop unwanted tips from phylogeny
+adults.new.tree <- drop.tip(phy = lens.tree, tip = drops) 
+
+#Make row names of the species the phylogeny tip labels
+rownames(lens_adults.new) <- lens_adults.new$ASW_names
+
+#check that names match in dataframe and tree
+name.check(phy = adults.new.tree, data = lens_adults.new, data.names = lens_adults.new$ASW_names)
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+lenssize.comp <- comparative.data(phy = adults.new.tree, data = lens_adults.new, 
+                              names.col = ASW_names, vcv = TRUE, 
+                              na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+lenssize.comp$dropped$tips #phylogeny
+lenssize.comp$dropped$unmatched.rows #dataset
+
+#### PGLS model for t50 vs. lens size ####
+
+#model
+pgls_size.t50 <- pgls(t50 ~ log10(approx_size), 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_size.t50, main = "PGLS model for t50 vs. log lens size")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_size.t50)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.size.t50 <- pgls.profile(pgls_size.t50, "lambda")
+plot(lambda.size.t50)
+
+#plot t50 vs. log lens size with fit
+plot_t50size <- ggplot(lens_adults.new, aes(x = approx_size, y = t50, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("t50") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_size.t50)[[2]], intercept = coef(pgls_size.t50)[[1]])
+
+#interactive plot
+ggplotly(plot_t50size)
+
+#### PGLS model for %UVA vs. lens size ####
+
+#model
+pgls_size.puva <- pgls(pUVA ~ log10(approx_size), 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_size.puva, main = "PGLS model for pUVA vs. log lens size")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_size.puva)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.size.uva <- pgls.profile(pgls_size.puva, "lambda")
+plot(lambda.size.uva)
+
+#plot %UVA vs. log lens size with fit
+plot_uvasize <- ggplot(lens_adults.new, aes(x = approx_size, y = pUVA, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("%UVA") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_size.puva)[[2]], intercept = coef(pgls_size.puva)[[1]])
+
+#interactive plot
+ggplotly(plot_uvasize)
+
+```
+
+However, we only expect path length to show a strong relationship with UV transmission in unpigmented lenses, so we may want to look separately at just unpigmented ones. Douglas and McGuigan (1989) classed freshwater teleost lenses into 3 categories based on t50: type 1 (315 to 354), type 2 (362-405), and type 3 (425 to 450). Here, our lenses ranged in t50 from 317 to 423. 
+
+In our results, we considered a t50 ≤ 350nm to be an unpigmented lens. We can look at that plotted onto a histogram of all our t50 values to see where that falls in our data. 
+
+```{r}
+
+#Histogram of T50 values in our dataset
+  plot_t50hist <-ggplot(lens_adults.new, aes(x = t50)) + 
+  geom_histogram(color = "black", fill = "gray", binwidth = 5) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("t50") +
+  geom_vline(aes(xintercept=350), col = "red", linetype = "dashed")
+  
+
+plot_t50hist
+```
+Next we look at t50 vs. log lens diameter only on unpigmented lenses (t50 ≤ 350). Interestingly, in this subset of data (n = 27), there is no significant correlation between T50 and lens size (slope does not differ significantly from 0)
+
+```{r}
+
+#add pigmentation category to dataframe
+lens_adults.new <- lens_adults.new %>%
+  mutate(pigment = ifelse(t50 <= 350, "unpigmented", "pigmented"))
+
+#subset unpigmented species
+lens_unpig <- lens_adults.new %>%
+  filter(pigment=="unpigmented")
+
+#PGLS models for t50 or %UVA vs. lens diameter among species
+
+#### prep data ####
+
+#Make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, as.character(lens_unpig$ASW_names))
+
+#Drop unwanted tips from phylogeny
+unpig.tree <- drop.tip(phy = lens.tree, tip = drops) 
+
+#Make row names of the species the phylogeny tip labels
+rownames(lens_unpig) <- lens_unpig$ASW_names
+
+#check that names match in dataframe and tree
+name.check(phy = unpig.tree, data = lens_unpig, data.names = lens_unpig$ASW_names)
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+unpig.comp <- comparative.data(phy = unpig.tree, data = lens_unpig, 
+                              names.col = ASW_names, vcv = TRUE, 
+                              na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+unpig.comp$dropped$tips #phylogeny
+unpig.comp$dropped$unmatched.rows #dataset
+
+#### PGLS model for t50 vs. lens size ####
+
+#model
+pgls_unpig.t50 <- pgls(t50 ~ log10(approx_size), 
+                  data = unpig.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_unpig.t50, main = "PGLS model for t50 vs. log lens size in unpigmented lenses")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_unpig.t50)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.unpig.t50 <- pgls.profile(pgls_unpig.t50, "lambda")
+plot(lambda.unpig.t50)
+
+#plot t50 vs. log lens size with fit
+plot_t50unpig <- ggplot(lens_unpig, aes(x = approx_size, y = t50, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("t50") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_unpig.t50)[[2]], intercept = coef(pgls_unpig.t50)[[1]])
+
+#interactive plot
+ggplotly(plot_t50unpig)
+
+#### PGLS model for %UVA vs. lens size ####
+
+#model
+pgls_unpig.puva <- pgls(pUVA ~ log10(approx_size), 
+                  data = unpig.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_unpig.puva, main = "PGLS model for pUVA vs. log lens size in unpigmented lenses")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_unpig.puva)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.unpig.uva <- pgls.profile(pgls_unpig.puva, "lambda")
+plot(lambda.unpig.uva)
+
+#plot %UVA vs. log lens size with fit
+plot_uva.unpig <- ggplot(lens_unpig, aes(x = approx_size, y = pUVA, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("%UVA") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_unpig.puva)[[2]], intercept = coef(pgls_unpig.puva)[[1]])
+
+#interactive plot
+ggplotly(plot_uva.unpig)
+
+```
+
+Since we found a significant effect of diurnality and scansoriality on lens transmission, I wanted to go back to the original full dataset and test for differences in the effect of lens size on transmission across groups (diurnal and/or scansorial vs. neither). However, I think this is pretty useless and meaningless since there was no significant effect of lens size on transmission in the first place. 
+
+```{r}
+#make new category with arboreal, diurnal, both, or neither
+lens_adults.new <- lens_adults.new %>%
+  mutate(eco_cat = case_when(hab=="scansorial" & act=="diurnal" ~ "both",
+                             hab == "scansorial" ~ "scansorial",
+                             act == "diurnal" ~ "diurnal", 
+                             hab=="other" & act=="nondiurnal" ~ "neither")) %>%
+  mutate(eco_binary = recode_factor(eco_cat, "scansorial" = "SD", "diurnal" = "SD", "both" = "SD", "neither" = "not"))
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+lenssize.comp <- comparative.data(phy = adults.new.tree, data = lens_adults.new, 
+                              names.col = ASW_names, vcv = TRUE, 
+                              na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+lenssize.comp$dropped$tips #phylogeny
+lenssize.comp$dropped$unmatched.rows #dataset
+
+#### PGLS model for t50 vs. lens size ####
+
+#model
+pgls_size.t50eco <- pgls(t50 ~ log10(approx_size) * eco_binary, 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_size.t50eco, main = "PGLS model for t50 vs. log lens size * ecology")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#main effects
+anova(pgls_size.t50eco)
+
+#coefficients
+summary(pgls_size.t50eco)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.size.t50eco <- pgls.profile(pgls_size.t50eco, "lambda")
+plot(lambda.size.t50eco)
+
+#plot t50 vs. log lens size with fit
+plot_t50sizeeco <- ggplot(lens_adults.new, aes(x = approx_size, y = t50, text = genus_species, col = eco_binary)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("t50") + 
+  scale_color_manual(values = c("gray", "black"), name = "Ecology",
+                     breaks = c("SD", "not"),
+                     labels = c("scansorial and/or diurnal", "neither")) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_size.t50eco)[[2]], intercept = coef(pgls_size.t50eco)[[1]], col = "gray") +
+  geom_abline(slope = coef(pgls_size.t50eco)[[2]]+coef(pgls_size.t50eco)[[4]], intercept = coef(pgls_size.t50eco)[[1]]+coef(pgls_size.t50eco)[[3]])
+
+#plot
+plot_t50sizeeco
+```
+
+Here, we do see a significant difference between species that are diurnal and/or scansorial and species that are not. This difference is only significant in intercepts, meaning that as a group scansorial and/or diurnal species have higher t50 values than nonscansorial/diurnal species, but the slope of the relationship between lens diameter and T50 is the same. I don't know that all this is relevent at all since lens size does not have a significant effect. Our phylogenetic ANOVAs should cover it. We could potentially do some model ranking via AIC if we want to see if adding lens size into the model gives it more explanatory power than leaving it out, but that might be unecessary. 
+
+Since we do not have data on lens size from the published data we included in the other ecological models, that is a good argument for excluding it there. The one thing I had worried about was that our scansorial/diurnal species might just have the biggest eyes (especially our scansorial things), which could give them higher t50 due to longer path lengths. However, if we look at each group it looks like there are a good spread of lens sizes among scansorial things, they are showing higher t50s than nonscansorial things with the same lens sizes.
+
+*Ron: it seems like a lot of figures like this in previous papers also plot a line with predicted/theoretical increase in t50 just based on lens size (path length alone) to show how that compares to what we actually see in our data. Should we add that?*
+
+# Visualize ecological data
+
+## Plot adult sampling onto phylogeny
+
+```{r, results = "hide"}
 
 # prep data -----
 
@@ -384,7 +705,9 @@ name.check(tree.adults, phylo_data)
 rownames(adults_sep) <- adults_sep$ASW_names
 adults_sep <- adults_sep[tree.adults$tip.label, ] 
 
+```
 
+```{r, fig.height=15, fig.width=8, fig.caption = "Phylogeny showing adult lens data (T50 wavelength) and ecological traits. The first (non italicized) column shows our T50 measurements for adults, the second (italicized) column shows T50 values calculated from data in published literature, green triangles show scansoriality, yellow circles show diurnality, and blue squares show sexual dichromatism."}
 #plot phylogeny with sampling tip labels ----
 
 #phylogeny
@@ -419,17 +742,19 @@ tiplabels(col = c("#009E73","grey95")[adults_sep$hab], #sets color habitat
           offset = 50) 
 
 #add tip labels for diurnal/not
-tiplabels(col = c("grey95","#F0E442")[adults_sep$act], #sets color habitat
+tiplabels(col = c("grey95","#FFB122")[adults_sep$act], #sets color habitat
           pch = 19,
           cex = 0.8,
           offset = 60) 
 
 #add tip labels for sexually dimorphic/not
-tiplabels(col = c("grey95","#56B4E9")[adults_sep$dich], #sets color habitat
+tiplabels(col = c("grey95","#03a1fc")[adults_sep$dich], #sets color habitat
           pch = 15,
           cex = 0.8,
           offset = 70) 
+```
 
+```{r, results = "hide"}
 #export pdf
 
 #pdf
@@ -467,13 +792,13 @@ tiplabels(col = c("#009E73","grey95")[adults_sep$hab], #sets color habitat
           offset = 50) 
 
 #add tip labels for diurnal/not
-tiplabels(col = c("grey95","#F0E442")[adults_sep$act], #sets color habitat
+tiplabels(col = c("grey95","#FFB122")[adults_sep$act], #sets color habitat
           pch = 19,
           cex = 0.8,
           offset = 60) 
 
-#add tip labels for sexually dimorphic/not
-tiplabels(col = c("grey95","#56B4E9")[adults_sep$dich], #sets color habitat
+#add tip labels for sexually dichromatic/not
+tiplabels(col = c("grey95","#03a1fc")[adults_sep$dich], #sets color habitat
           pch = 15,
           cex = 0.8,
           offset = 70) 
@@ -482,23 +807,29 @@ dev.off()
 
 ```
 
-### May try to re-build this plot in ggtree so I can color boxes by amount of filtering (closer to 500 = more yellow)
+## Plots of T50 and %UVA values across states
 
-To save time, not attempting this now. 
+Here we plot adult lens transmission metrics (T50 and %UVA) across ecological categories to visualize differences (without accounting for phylogeny)
 
-```{r, fig.height=8, fig.width=4, include = FALSE}
+```{r cols, results = "hide"}
 
-## Try this in ggtree to get continuous fill of tiplabels
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#BDC3BE")
 
-library(ggimage)
-library(ggtree)
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#BDC3BE",
+             "diurnal" = "#FFB122")
 
+#create vector of colors for activity period
+col_dich <- c("nondichromatic" = "#BDC3BE",
+              "dichromatic" = "#03a1fc")
 
-ggtree(lens.tree, ladderize = TRUE) +
-  geom_tiplab()
+#create shape vector for source of data
+sh_source <- c("literature" = 1, 
+               "this_study" = 19)
 ```
 
-## Plots of T50 and %UVA values across states
 
 ```{r boxplots-eco}
 
@@ -507,21 +838,38 @@ ggtree(lens.tree, ladderize = TRUE) +
 # boxplot of T50 across habs
 boxplot_habs.t50 <- ggplot(data = lens_adults, 
                        aes(x = hab, y = t50)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
-  xlab("Scansoriality") +
-  ylab("T50 wavelength (nm)") +
-  labs(fill = "Data source")
+ geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("") +
+  ylab("T50 wavelength (nm)")
 
 # boxplot of %UVA across habs
 boxplot_habs.uva <- ggplot(data = lens_adults, 
                        aes(x = hab, y = pUVA)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+ geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Scansoriality") +
   ylab("UVA (%)") +
   labs(fill = "Data source")
@@ -534,13 +882,22 @@ plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
 
 # Diurnality ------
 
-# boxplot of T50 across habs
+# boxplot of T50 across acts
 boxplot_act.t50 <- ggplot(data = lens_adults, 
                        aes(x = act, y = t50)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+ geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Diurnality") +
   ylab("T50 wavelength (nm)") +
   labs(fill = "Data source")
@@ -548,10 +905,19 @@ boxplot_act.t50 <- ggplot(data = lens_adults,
 # boxplot of %UVA across habs
 boxplot_act.uva <- ggplot(data = lens_adults, 
                        aes(x = act, y = pUVA)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+ geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Diurnality") +
   ylab("UVA (%)") +
   labs(fill = "Data source")
@@ -566,12 +932,20 @@ plot_grid(boxplot_act.t50, boxplot_act.uva,  #list of plots to arrange in grid
 # Sexual dichromatism ------
 
 # boxplot of T50 across habs
-boxplot_dich.t50 <- ggplot(data = lens_adults, 
-                       aes(x = dich, y = t50)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+boxplot_dich.t50 <- ggplot(data = lens_adults, aes(x = dich, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+ geom_jitter(aes(color = dich, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Sexual dichromatism") +
   ylab("T50 wavelength (nm)") +
   labs(fill = "Data source")
@@ -579,10 +953,19 @@ boxplot_dich.t50 <- ggplot(data = lens_adults,
 # boxplot of %UVA across habs
 boxplot_dich.uva <- ggplot(data = lens_adults, 
                        aes(x = dich, y = pUVA)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.6) + #controls boxes  
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = source), shape = 19, size = 1.3, alpha = 0.5, position = position_jitter(0.15)) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black")) + #controls background
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+ geom_jitter(aes(color = dich, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Sexual dichromatism") +
   ylab("UVA (%)") +
   labs(fill = "Data source")
@@ -595,327 +978,1139 @@ plot_grid(boxplot_dich.t50, boxplot_dich.uva,  #list of plots to arrange in grid
 
 ```
 
+Alternately, as only scansoriality and diurnality had significant effects on lens transmission, we can color the species data in each of those boxplots by the categorization for the alternate state (e.g. scansorial boxplots colored by diurnal states). This might help us to visualize correlation between our significant traits. 
 
-# Comparative evolutionary models
+```{r boxplots-eco-colchange}
 
-## Premilinary plots of data
+# Scansoriality ------
 
-Here I plot the data and traits onto the tree so we can look at the phylogenetic distribution and see if any interesting patterns come out. 
+# boxplot of T50 across habs
+boxplot_habs.t50_col <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("") +
+  ylab("T50 wavelength (nm)")
 
-```{r phylo-lens, fig.height = 15, fig.width = 15, fig.cap = "Lens transmission and ecology across adult anurans"}
+# boxplot of %UVA across habs
+boxplot_habs.uva_col <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("Scansoriality") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
 
-# create vector of colors for pupil constriction and shape
+#print plots
+plot_grid(boxplot_habs.t50_col, boxplot_habs.uva_col,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
 
-#create colors for habitat
-col_hab <- c("Aquatic" = "#0072B2",
-              "Fossorial" = "#D55E00",
-              "Ground-dwelling" = "#E69F00",
-              "Scansorial" = "#009E73",
-              "Semiaquatic" = "#56B4E9",
-              "Subfossorial" = "#CC79A7")
+# Diurnality ------
 
-#create vector of colors for activity period
-col_act <- c("Both" = "deeppink3",
-             "Diurnal" = "darkgoldenrod1", 
-             "Nocturnal" = "blueviolet")
+# boxplot of T50 across acts
+boxplot_act.t50_col <- ggplot(data = lens_adults, 
+                       aes(x = act, y = t50)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("Diurnality") +
+  ylab("T50 wavelength (nm)") +
+  labs(fill = "Data source")
+
+# boxplot of %UVA across habs
+boxplot_act.uva_col <- ggplot(data = lens_adults, 
+                       aes(x = act, y = pUVA)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("Diurnality") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_act.t50_col, boxplot_act.uva_col,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+```
+
+From these plots you can see that although diurnal activity and scansorial habitats both had significant, positive effects on T50 (more lens filtering), most of our diurnal species are non-scansorial/most scansorial species are nocturnal (there is only one species that is both). Therefore, in our analyses these effects are mostly separate (not additive or correlated). 
+
+```{r boxplots-eco-export, results = "hide"}
+
+#Boxplot figure
+
+fig.a <- boxplot_habs.t50 + 
+  xlab("")+ 
+  ylab("t50") +
+  theme(legend.position = "none")
+
+fig.b <- boxplot_habs.uva + 
+  xlab("")+ 
+  ylab("%UVA") +
+  theme(legend.position = "none")
+
+fig.c <- boxplot_act.t50 + 
+  xlab("")+ 
+  ylab("t50") +
+  theme(legend.position = "none")
+
+fig.d <- boxplot_act.uva + 
+  xlab("")+ 
+  ylab("%UVA") +
+  theme(legend.position = "none")
+
+fig.e <- boxplot_dich.t50 + 
+  xlab("")+ 
+  ylab("t50") +
+  theme(legend.position = "none")
+
+fig.f <- boxplot_dich.uva + 
+  xlab("")+ 
+  ylab("%UVA") +
+  theme(legend.position = "none")
+
+# boxplot of T50 across habs
+pdf("../Figures/boxplots.pdf", width = 7, height = 10)
+plot_grid(fig.a, fig.b, fig.c, fig.d, fig.e, fig.f,
+          align = 'vh', 
+          labels = c("A", "B", "C", "D", "E", "F"),
+          hjust = -1, #adjustment for panel labels
+          ncol = 2)
+dev.off()
+
+```
+
+```{r sicb-plots, include = FALSE}
+# Scansoriality ------
+
+# boxplot of T50 across habs
+boxplot_habs.t50 <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = hab), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("") +
+  ylab("T50 wavelength (nm)") +
+  theme(legend.position = "none") 
+
+# boxplot of %UVA across habs
+boxplot_habs.uva <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = hab), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("") +
+  ylab("UVA (%)") +
+  theme(legend.position = "none") 
+
+#export
+pdf("../Figures/boxplots_scansorial.pdf", width = 5, height = 3.5)
+#print plots
+plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+dev.off()
+
+
+# Diurnality ------
+
+# boxplot of T50 across acts
+boxplot_act.t50 <- ggplot(data = lens_adults, 
+                       aes(x = factor(act, level = c("diurnal", "nondiurnal")), y = t50)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = act), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("") +
+  ylab("T50 wavelength (nm)")  +
+  theme(legend.position = "none") 
+
+# boxplot of %UVA across habs
+boxplot_act.uva <- ggplot(data = lens_adults, 
+                       aes(x = factor(act, level = c("diurnal", "nondiurnal")), y = pUVA)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+ geom_jitter(aes(color = act), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab(" ") +
+  ylab("UVA (%)")  +
+  theme(legend.position = "none") 
+
+#export
+pdf("../Figures/boxplots_diurnal.pdf", width = 5, height = 3.5)
+
+plot_grid(boxplot_act.t50, boxplot_act.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+dev.off()
+
+# Sexual dichromatism ------
+
+# boxplot of T50 across habs
+boxplot_dich.t50 <- ggplot(data = lens_adults, aes(x = factor(dich, level = c("dichromatic", "nondichromatic")), y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+ geom_jitter(aes(color = dich), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic")) +
+  scale_x_discrete(labels=c("dichromatic" = "dichrom.", "nondichromatic" = "non-dichrom."))+
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab(" ") +
+  ylab("T50 wavelength (nm)")  +
+  theme(legend.position = "none") 
+
+# boxplot of %UVA across habs
+boxplot_dich.uva <- ggplot(data = lens_adults, 
+                       aes(x = factor(dich, level = c("dichromatic", "nondichromatic")), y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+ geom_jitter(aes(color = dich), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic")) +
+  scale_x_discrete(labels=c("dichromatic" = "dichrom.", "nondichromatic" = "non-dichrom."))+
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab(" ") +
+  ylab("UVA (%)") +
+  theme(legend.position = "none") 
+
+#export
+pdf("../Figures/boxplots_dichromatism.pdf", width = 5, height = 3.5)
+
+plot_grid(boxplot_dich.t50, boxplot_dich.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+dev.off()
+```
+
+
+## Plots of T50 and %UVA values onto phylogeny
+
+Here and in subsequent analyses, we must have one transmission value assigned to each species. We include data from both our study and from previously published literature. However, for the 8 species with data from both sources, we chose to use our data in these visualizations and in analyses.
+
+```{r subset-adultphy, results = "hide"}
+
+#For species with more than one data point (measured by us and in lit), choose our data
+adults_merged <- adults_sep %>%
+  mutate(t50_merge = ifelse(is.na(adults_sep$t50_new), t50_lit, t50_new)) %>%
+  mutate(pUVA_merge = ifelse(is.na(adults_sep$pUVA_new), pUVA_lit, pUVA_new))
+```
+
+### T50 across species and ecologies
+
+```{r ggtree version, fig.height = 8, fig.width = 6}
+
+#subset data for T50
+adults_plot <- adults_merged %>%
+  mutate(tip = ASW_names) %>%
+  #put genus and species in separate columns
+  separate(ASW_names, c("genus", "species"), sep = "_", extra = "drop") %>%
+  #add tip labels with regular text
+  mutate(labels = as.factor(paste(genus, species, sep = " "))) %>%
+  select(tip, labels, t50_merge, pUVA_merge, hab, act, dich)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adults_plot) <- adults_plot$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adults_plot)
+
+#resort trait dataset to the order of tree tip labels
+adults_plot <- adults_plot[tree.adults$tip.label, ] 
+
+#labels
+labs <- adults_plot %>% select(tip, labels)
+
+# Make the original plot
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels)) + 
+   xlim_tree(450) + 
+   coord_cartesian(clip = 'off') 
+  # theme_tree(plot.margin=margin(6, 50, 6, 6))
+
+# Make a second plot with the original, naming the new plot "dot", using the data you just created, with a point geom.
+p2 <- facet_plot(p, panel="lambda T50", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = hab), shape = 19, cex = 2.5) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial"))
+
+# Make some more data with another random value.
+#d2 <- data.frame(id=tree$tip.label, value = abs(rnorm(30, mean=100, sd=50)))
+
+# Now add to that second plot, this time using the new d2 data above, 
+# This time showing a bar segment, size 3, colored blue.
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = hab), size=3) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+
+ gt = ggplot_gtable(ggplot_build(p3))
+# gtable_show_layout(gt) # will show you the layout - very handy function
+# gt # see plot layout in table format
+# gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
+ gt$widths[7] = 0.5*gt$widths[7] # reduce column 7
+ gt$widths[9] = 0.5*gt$widths[9] 
+ grid::grid.draw(gt) # plot with grid draw
+ 
+#export as pdf
+pdf("../Figures/ggtree-scans.pdf", width = 10, height = 15)
+grid::grid.draw(gt) # plot with grid draw
+dev.off()
+
+# Plots for SICB talk --------
+
+# Plain data tree ---------
+
+# phylogeny panel with tip labels to export
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels)) + 
+   xlim_tree(700) + 
+   coord_cartesian(clip = 'off') 
+
+#export as pdf
+pdf("../Figures/labs-phylo-pres.pdf", width = 7, height = 15)
+p
+dev.off()
+
+# phylogeny panel
+p <- ggtree(tree.adults) 
+
+# Dot panel of T50 values
+p2 <- facet_plot(p, panel="lambda T50", data=adults_plot, geom=geom_point, aes(x=t50_merge), color = "#6E706E", shape = 19, cex = 2.5)
+
+#Bar plot of %UVA values
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y), color = "#6E706E", size=3) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+ 
+#export as pdf
+pdf("../Figures/plain-phylo-pres.pdf", width = 7, height = 15)
+p3
+dev.off()
+
+# Scansorial tree ---------
+
+# phylogeny panel
+p <- ggtree(tree.adults) 
+
+# Dot panel of T50 values
+p2 <- facet_plot(p, panel="lambda T50", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = hab), shape = 19, cex = 2.5) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial"))
+
+#Bar plot of %UVA values
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = hab), size=3) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial")) +
+  theme_tree2(legend.position=c(.1, .93)) #add scale bars and move legends
+ 
+#export as pdf
+pdf("../Figures/scans-phylo-pres.pdf", width = 7, height = 15)
+p3
+dev.off()
+
+# Diurnal tree ---------
+
+# phylogeny panel
+p <- ggtree(tree.adults) 
+
+# Dot panel of T50 values
+p2 <- facet_plot(p, panel="lambda T50", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = act), shape = 19, cex = 2.5) + 
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal"))
+
+#Bar plot of %UVA values
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = act), size=3) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  theme_tree2(legend.position=c(.1, .93)) #add scale bars and move legends
+ 
+#export as pdf
+pdf("../Figures/diur-phylo-pres.pdf", width = 7, height = 15)
+p3
+dev.off()
+
+# Sex dichromatism tree ---------
+
+# phylogeny panel
+p <- ggtree(tree.adults)
+
+# Dot panel of T50 values
+p2 <- facet_plot(p, panel="lambda T50", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = dich), shape = 19, cex = 2.5) + 
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic"))
+
+#Bar plot of %UVA values
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = dich), size=3) +
+  scale_color_manual(values = col_dich,
+                     name = "Sexual dichromatism",
+                     breaks = c("dichromatic", "nondichromatic"),
+                     labels = c("dichromatic", "non-dichromatic")) +
+  theme_tree2(legend.position=c(.1, .93)) #add scale bars and move legends
+ 
+#export as pdf
+pdf("../Figures/dich-phylo-pres.pdf", width = 7, height = 15)
+p3
+dev.off()
+
+```
+
+
+```{r phylo-t50-eco, results = "hide"}
 
 # Prep data and phylogeny -----
 
-#subset data for eye diameter and mass
-adult_bars <- lens_adults %>%
-  mutate(tip = genus_species, 
-         UVA700 = pUV_700norm, 
-         UVA450 = pUV_450norm, 
-         hab = Adult_habitat,
-         act = Activity_period) %>%
-  select(tip, UVA700, UVA450, hab, act)
+#subset data for T50
+adult_t50 <- adults_merged %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, t50_merge, hab, act, dich)
 
 # set row names in dataset to match the tip labels in the tree
-row.names(adult_bars) <- adult_bars$tip
-
-#drop phylogeny tips not in dataset)
-adult.tree <- drop.tip(lens.tree, lens.tree$tip.label[!(lens.tree$tip.label %in% adult_bars$tip)])
+row.names(adult_t50) <- adult_t50$tip
 
 #check that phylogeny and data match exactly
-name.check(adult.tree, adult_bars)
+name.check(tree.adults, adult_t50)
 
 #resort trait dataset to the order of tree tip labels
-adult_bars <- adult_bars[adult.tree$tip.label, ] 
+adult_t50 <- adult_t50[tree.adults$tip.label, ] 
 
-#make trait vector for uva
-uva450 <- as.vector(adult_bars$UVA450) 
-
-#add tip label names to vector
-names(uva450) <- adult_bars$tip 
-
-#make trait vector for uva
-uva700 <- as.vector(adult_bars$UVA700) 
+#make trait vector for t50
+t50 <- as.vector(adult_t50$t50_merge) 
 
 #add tip label names to vector
-names(uva700) <- adult_bars$tip 
+names(t50) <- adult_t50$tip 
 
 #make trait vector for activity per
-act <- as.vector(adult_bars$act) 
+act <- as.vector(adult_t50$act) 
 
 #add tip label names to vector
-names(act) <- adult_bars$tip 
+names(act) <- adult_t50$tip 
 
 #make vector of colors corresponding to phylogeny tips
 tipcols.act <- unname(col_act[act]) 
 
 #make trait vector for habitat
-hab <- as.vector(adult_bars$hab)
+hab <- as.vector(adult_t50$hab)
 
 #add tip label names to vector
-names(hab) <- adult_bars$tip
+names(hab) <- adult_t50$tip
 
 #make vector of colors corresponding to phylogeny tips
 tipcols.hab <- unname(col_hab[hab]) 
 
-
-# phylogeny of adult sampling --------
-
-#export as pdf
-pdf("../Figures/phylogeny_adults.pdf", width = 12, height = 12)
-
-#plot your beautiful phylogeny
-plot.phylo(adult.tree, #phylogeny to plot
-           type = "fan", #how to visualize phylogeny
-           show.tip.label = TRUE, #whether to show tip labels/species names
-           cex = 1.0, #text size
-           no.margin = TRUE, 
-           use.edge.length = TRUE,
-           edge.width = 1.5, #thickness of phylogeny branches
-           label.offset = 3) #how far away from tips to put labels
-
-#end pdf
-dev.off()
-
-
-# phylogeny with %UVA normalized to 450 ------
-
-#export as pdf
-pdf("../Figures/phylogeny_UVA.pdf", width = 12, height = 12)
-
-#plot phylogeny
-plotTree.wBars(adult.tree, uva450,
-               scale = 3, 
-               tip.labels = TRUE, 
-               type = "fan",
-               offset = 2,
-               ftype = "bi",
-               fsize = 0.8)
-
-#end pdf
-dev.off()
-
-# phylogeny with %UVA normalized to 450 with activity pattern ------
-
-#export as pdf
-pdf("../Figures/phylogeny_UVAact450.pdf", width = 12, height = 12)
-
-#plot phylogeny
-plotTree.wBars(adult.tree, uva450,
-               scale = 3, 
-               tip.labels = TRUE, 
-               type = "fan",
-               offset = 2,
-               ftype = "bi",
-               fsize = 0.8,
-               col = tipcols.act)
-
-#end pdf
-dev.off()
-
-# phylogeny with %UVA normalized to 700 with activity pattern ------
-
-#export as pdf
-pdf("../Figures/phylogeny_UVAact700.pdf", width = 12, height = 12)
-
-#plot phylogeny
-plotTree.wBars(adult.tree, uva700,
-               scale = 3, 
-               tip.labels = TRUE, 
-               type = "fan",
-               offset = 2,
-               ftype = "bi",
-               fsize = 0.8,
-               col = tipcols.act)
-
-#end pdf
-dev.off()
-
-
-# Test whether act associated with %UVA ------
-
-#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
-uva.act.comp <- comparative.data(phy = adult.tree, data = lens_adults %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
-
-#check for dropped tips or dropped species
-uva.act.comp$dropped$tips #phylogeny
-uva.act.comp$dropped$unmatched.rows #dataset
-
-#activity pattern vs. %UVA (normalized 450)
-pgls_act <- pgls(pUV_450norm ~ Activity_period, 
-               data = uva.act.comp,
-               lambda = "ML", 
-               param.CI = 0.95)
-summary(pgls_act)
-anova(pgls_act)
-
-#activity pattern vs. %UVA (normalized 700)
-pgls_act2 <- pgls(pUV_700norm ~ Activity_period, 
-               data = uva.act.comp,
-               lambda = "ML", 
-               param.CI = 0.95)
-summary(pgls_act2)
-anova(pgls_act2)
-
-# phylogeny with %UVA normalized to 450 with habitat ------
-
-#export as pdf
-pdf("../Figures/phylogeny_UVAhab450.pdf", width = 12, height = 12)
-
-#plot phylogeny
-plotTree.wBars(adult.tree, uva450,
-               scale = 3, 
-               tip.labels = TRUE, 
-               type = "fan",
-               offset = 2,
-               ftype = "bi",
-               fsize = 0.8,
-               col = tipcols.hab)
-
-#end pdf
-dev.off()
-
-# Test whether habitat associated with %UVA ------
-
-#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
-uva.hab.comp <- comparative.data(phy = adult.tree, data = lens_adults %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
-
-#check for dropped tips or dropped species
-uva.hab.comp$dropped$tips #phylogeny
-uva.hab.comp$dropped$unmatched.rows #dataset
-
-#activity pattern vs. %UVA (normalized 450)
-pgls_hab <- pgls(pUV_450norm ~ Adult_habitat, 
-               data = uva.hab.comp,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-summary(pgls_hab)
-anova(pgls_hab)
-
-# Test whether habitat associated with %UVA ------
-
-#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
-
-#change habitat to scansorial vs. not
-binary_hab <- lens_adults %>%
-  mutate(binary_hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other"))
-
-#resort trait dataset to the order of tree tip labels
-rownames(binary_hab) <- binary_hab$genus_species
-binary_hab <- binary_hab[adult.tree$tip.label, ] 
-
-uva.habbi.comp <- comparative.data(phy = adult.tree, data = binary_hab %>% droplevels(), names.col = genus_species, vcv = TRUE, na.omit = FALSE, warn.dropped = TRUE)
-
-#check for dropped tips or dropped species
-uva.habbi.comp$dropped$tips #phylogeny
-uva.habbi.comp$dropped$unmatched.rows #dataset
-
-#activity pattern vs. %UVA (normalized 450)
-pgls_habbi <- pgls(pUV_450norm ~ binary_hab, 
-               data = uva.habbi.comp,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-summary(pgls_habbi)
-anova(pgls_habbi)
-
-#activity pattern vs. %UVA (normalized 700)
-pgls_habbi700 <- pgls(pUV_700norm ~ binary_hab, 
-               data = uva.habbi.comp,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-summary(pgls_habbi700)
-anova(pgls_habbi700)
-
-# phylogeny with %UVA normalized to 450 with binary habitats ------
-
-#color vector for binary habitat
-col_habbi <- c("scansorial" = "#009E73",
-              "other" = "gray")
-
-
 #make trait vector for habitat
-habbi <- as.vector(binary_hab$binary_hab)
+dich <- as.vector(adult_t50$dich)
 
 #add tip label names to vector
-names(habbi) <- binary_hab$tip
+names(dich) <- adult_t50$tip
 
 #make vector of colors corresponding to phylogeny tips
-tipcols.habbi <- unname(col_habbi[habbi]) 
+tipcols.dich <- unname(col_dich[dich]) 
+```
 
+```{r,fig.height=10, fig.width=10}
+# Scansoriality ------
 
 #export as pdf
-pdf("../Figures/phylogeny_UVAhabbi450.pdf", width = 12, height = 12)
+#pdf("../Figures/phylogeny_hab.pdf", width = 10, height = 10)
 
 #plot phylogeny
-plotTree.wBars(adult.tree, uva450,
-               scale = 3, 
+plotTree.wBars(tree.adults, t50,
+               scale = 0.3, 
                tip.labels = TRUE, 
                type = "fan",
                offset = 2,
                ftype = "bi",
-               fsize = 0.8,
-               col = tipcols.habbi)
+               fsize = 0.7,
+               col = tipcols.hab)
 
-#plot(NULL ,xaxt='n',yaxt='n',bty='n',ylab='',xlab='', xlim=0:1, ylim=0:1)
-#add legend for pupil constriction
-legend("topleft", legend = c("scansorial", "other"), 
-       col = col_habbi,
-       pch = 15, #shape of labels
-       cex = 2, 
-       box.lty = 0, 
-       title = "Adult habitat", 
-       title.adj = 0)
+#add legend for habitat states
+legend(x = "bottomleft", legend = c("scansorial", "non-scansorial"), pch = 22, pt.cex= 1, pt.bg = col_hab, cex = 1, bty = "n", horiz = F)
+
 
 #end pdf
-dev.off()
+#dev.off()
+
+# Diurnality ------
 
 #export as pdf
-pdf("../Figures/phylogeny_UVAhabbi700.pdf", width = 12, height = 12)
+#pdf("../Figures/phylogeny_act.pdf", width = 10, height = 10)
 
 #plot phylogeny
-plotTree.wBars(adult.tree, uva700,
-               scale = 3, 
+plotTree.wBars(tree.adults, t50,
+               scale = 0.3, 
                tip.labels = TRUE, 
                type = "fan",
                offset = 2,
                ftype = "bi",
-               fsize = 0.8,
-               col = tipcols.habbi)
+               fsize = 0.7,
+               col = tipcols.act)
+
+#add legend for activity period states
+legend(x = "bottomleft", legend = c("non-diurnal", "diurnal"), pch = 22, pt.cex = 1, pt.bg = col_act, cex = 1, bty = "n", horiz = F)
+
+#end pdf
+#dev.off()
+
+
+# Sexual dichromatism ------
+#export as pdf
+#pdf("../Figures/phylogeny_dich.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.dich)
+
+#add legend for sex dichromatism states
+legend(x = "bottomleft", legend = c("non-dichromatic", "dichromatic"), pch = 22, pt.cex= 1, pt.bg = col_dich, cex = 1, bty = "n", horiz = F)
+
+
+#end pdf
+#dev.off()
+```
+
+```{r, results = "hide"}
+# Scansoriality ------
+
+#export as pdf
+pdf("../Figures/phylogeny_hab.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.2, 
+               tip.labels = FALSE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.hab)
+
+#add legend for habitat states
+legend(x = "bottomleft", legend = c("scansorial", "non-scansorial"), pch = 22, pt.cex= 1, pt.bg = col_hab, cex = 1, bty = "n", horiz = F)
+
 
 #end pdf
 dev.off()
 
-### testing other variables --------
+# Diurnality ------
 
-#Sexual dichromatism
-#activity pattern vs. %UVA (normalized 450)
-pgls_sd <- pgls(pUV_450norm ~ Sex_di, 
-               data = uva.hab.comp,
+#export as pdf
+pdf("../Figures/phylogeny_act.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.2, 
+               tip.labels = FALSE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.act)
+
+#add legend for activity period states
+legend(x = "bottomleft", legend = c("non-diurnal", "diurnal"), pch = 22, pt.cex = 1, pt.bg = col_act, cex = 1, bty = "n", horiz = F)
+
+#end pdf
+dev.off()
+
+
+# Sexual dichromatism ------
+#export as pdf
+pdf("../Figures/phylogeny_dich.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.3, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.dich)
+
+#add legend for sex dichromatism states
+legend(x = "bottomleft", legend = c("non-dichromatic", "dichromatic"), pch = 22, pt.cex= 1, pt.bg = col_dich, cex = 1, bty = "n", horiz = F)
+
+
+#end pdf
+dev.off()
+```
+
+### %UVA across species and ecologies
+
+```{r phylo-uva-eco, results = "hide"}
+
+# Prep data and phylogeny -----
+
+#subset data for uva
+adult_uva <- adults_merged %>%
+  filter(!is.na(pUVA_merge)) %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, pUVA_merge, hab, act, dich)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_uva) <- adult_uva$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adult_uva)
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(tree.adults$tip.label, adult_uva$tip)
+
+#drop unwanted tips from phylogeny
+tree.adults.uva <- drop.tip(phy = tree.adults, tip = drops) 
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults.uva, adult_uva)
+
+#resort trait dataset to the order of tree tip labels
+adult_uva <- adult_uva[tree.adults.uva$tip.label, ] 
+
+#make trait vector for uva
+uva <- as.vector(adult_uva$pUVA_merge) 
+
+#add tip label names to vector
+names(uva) <- adult_uva$tip 
+
+#make trait vector for activity per
+act <- as.vector(adult_uva$act) 
+
+#add tip label names to vector
+names(act) <- adult_uva$tip 
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.act <- unname(col_act[act]) 
+
+#make trait vector for habitat
+hab <- as.vector(adult_uva$hab)
+
+#add tip label names to vector
+names(hab) <- adult_uva$tip
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.hab <- unname(col_hab[hab]) 
+
+#make trait vector for habitat
+dich <- as.vector(adult_uva$dich)
+
+#add tip label names to vector
+names(dich) <- adult_uva$tip
+
+#make vector of colors corresponding to phylogeny tips
+tipcols.dich <- unname(col_dich[dich]) 
+```
+
+```{r, fig.height=10, fig.width=10}
+# Scansoriality ------
+
+#export as pdf
+#pdf("../Figures/phylogeny_hab_uva.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.45, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.hab)
+
+#add legend for habitat states
+legend(x = "bottomleft", legend = c("scansorial", "non-scansorial"), pch = 22, pt.cex= 1, pt.bg = col_hab, cex = 1, bty = "n", horiz = F)
+
+#end pdf
+#dev.off()
+
+# Diurnality ------
+
+#export as pdf
+#pdf("../Figures/phylogeny_act_uva.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.45, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.act)
+
+#add legend for activity period states
+legend(x = "bottomleft", legend = c("non-diurnal", "diurnal"), pch = 22, pt.cex = 1, pt.bg = col_hab, cex = 1, bty = "n", horiz = F)
+
+#end pdf
+#dev.off()
+
+
+# Sexual dichromatism ------
+#export as pdf
+#pdf("../Figures/phylogeny_dich_uva.pdf", width = 10, height = 10)
+
+#plot phylogeny
+plotTree.wBars(tree.adults, t50,
+               scale = 0.45, 
+               tip.labels = TRUE, 
+               type = "fan",
+               offset = 2,
+               ftype = "bi",
+               fsize = 0.7,
+               col = tipcols.dich)
+
+#add legend for sex dichromatism states
+legend(x = "bottomleft", legend = c("non-dichromatic", "dichromatic"), pch = 22, pt.cex= 1, pt.bg = col_hab, cex = 1, bty = "n", horiz = F)
+
+
+#end pdf
+#dev.off()
+```
+
+# Comparative evolutionary models 
+
+Here, we used PGLS models in caper to run phylogenetic ANOVAs to test for associations between lens transmission and ecological variables while accounting for evolutionary relatedness among species. 
+
+# Combined data (this paper + literature)
+
+These models use all available data, including all species we sampled plus all additional species available in published literature. 
+
+### T50 and ecology 
+
+```{r, results = "hide"}
+
+# Prep data for caper -------
+
+#use caper function to combine phylogeny and data into one object 
+#(this function also matches species names in tree and dataset)
+t50.comp <- comparative.data(phy = tree.adults, data = adult_t50, 
+                             names.col = tip, 
+                             vcv = TRUE, 
+                             na.omit = FALSE, 
+                             warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+t50.comp$dropped$tips #phylogeny
+t50.comp$dropped$unmatched.rows #dataset
+```
+
+#### Scansoriality T50
+
+Species that climb up plants/trees (=scansorial) have significantly higher T50 wavelengths (more UV filtering) than non-scansorial species in a phylogenetic anova .
+
+```{r}
+#habitat vs. T50
+pgls_hab.t50 <- pgls(t50_merge ~ hab, 
+               data = t50.comp,
                lambda = "ML", 
                param.CI = 0.95)
 
-summary(pgls_hab)
-anova(pgls_hab)
+# #diagnostic plots
+# par(mar = c(4,4,2,2))
+# par(mfrow = c(2, 2))
+# plot(pgls_hab.t50)
+# par(mfrow = c(1, 1))
+# 
+# #quick plot of pgls
+# plot(t50_merge ~ hab, data = adult_t50)
+# abline(pgls_hab.t50)
+# 
+# #Likelihood plot for Pagel's lambda
+# lambda.hab.t50 <- pgls.profile(pgls_hab.t50, "lambda")
+# plot(lambda.hab.t50)
 
+#main effects
+anova(pgls_hab.t50)
+
+#coefficients
+summary(pgls_hab.t50)
+```
+
+#### Diurnality T50
+
+Day-active (diurnal) species have significantly higher T50 wavelengths (more UV filtering) than non-diurnal species in a phylogenetic anova.
+
+```{r}
+# Diurnality --------
+
+#activity per vs. T50
+pgls_act.t50 <- pgls(t50_merge ~ act, 
+               data = t50.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_act.t50)
+
+#coefficients
+summary(pgls_act.t50)
 
 ```
 
+#### Sexual dichromatism T50
 
+Species exhibiting different coloration in males and females (sexually dichromatic) and nondichromatic species show no significant differences in lens filtering via T50. 
 
+```{r}
+# Sexual dichromatism --------
+
+#dichromatism vs. T50
+pgls_dich.t50 <- pgls(t50_merge ~ dich, 
+               data = t50.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_dich.t50)
+
+#coefficients
+summary(pgls_dich.t50)
+```
+
+### %UVA and ecology 
+
+Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. Note that the species dataset for these analyses are slightly reduced; a few species with data gathered from the literature could not be included, as transmission measurements were not made down to 300nm.
+
+```{r, results = "hide"}
+
+# Prep data for caper -------
+
+#use caper function to combine phylogeny and data into one object 
+#(this function also matches species names in tree and dataset)
+uva.comp <- comparative.data(phy = tree.adults.uva, data = adult_uva, 
+                             names.col = tip, 
+                             vcv = TRUE, 
+                             na.omit = FALSE, 
+                             warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+uva.comp$dropped$tips #phylogeny
+uva.comp$dropped$unmatched.rows #dataset
+```
+
+#### Scansoriality %UVA
+
+Scansorial species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic anova. This is consistent with the findings based on T50. 
+
+```{r}
+#habitat vs. UVA
+pgls_hab.uva <- pgls(pUVA_merge ~ hab, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_hab.uva)
+
+#coefficients
+summary(pgls_hab.uva)
+```
+
+#### Diurnality %UVA
+
+Diurnal species have significantly lower %UVA transmission (more UV filtering) than non-diurnal species in a phylogenetic anova. This is consistent with the results found using T50. 
+
+```{r}
+# Diurnality --------
+
+#activity per vs. UVA
+pgls_act.uva <- pgls(pUVA_merge ~ act, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_act.uva)
+
+#coefficients
+summary(pgls_act.uva)
+
+```
+
+#### Sexual dichromatism %UVA
+
+Sexually dichromatic and nondichromatic species show no significant differences in lens filtering measured by %UVA (this matches findings with T50). 
+
+```{r}
+# Sexual dichromatism --------
+
+#dichromatism vs. UVA
+pgls_dich.uva <- pgls(pUVA_merge ~ dich, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_dich.uva)
+
+#coefficients
+summary(pgls_dich.uva)
+
+```
+
+################NEW###########3
+
+## Our data only
+
+These models use only the species we collected data from (excludes species from published literature). 
+
+### T50 and ecology 
+
+```{r, results = "hide"}
+
+#prune tree to adult data from our study -----
+
+#set rownames to ASW names in new adult dataframe
+rownames(lens_adults.new) <- lens_adults.new$ASW_names
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, lens_adults.new$ASW_names)
+
+#drop unwanted tips from phylogeny
+tree.adults.new <- drop.tip(phy = lens.tree, tip = drops) 
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults.new, lens_adults.new)
+
+#resort dataset to the order of tree tip labels
+rownames(lens_adults.new) <- lens_adults.new$ASW_names
+lens_adults.new <- lens_adults.new[tree.adults.new$tip.label, ] 
+
+# Prep data for caper -------
+
+#use caper function to combine phylogeny and data into one object 
+#(this function also matches species names in tree and dataset)
+t50.comp_new <- comparative.data(phy = tree.adults.new, data = lens_adults.new,
+                             names.col = ASW_names, 
+                             vcv = TRUE, 
+                             na.omit = FALSE, 
+                             warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+t50.comp_new$dropped$tips #phylogeny
+t50.comp_new$dropped$unmatched.rows #dataset
+```
+
+#### Scansoriality T50
+
+Species that climb up plants/trees (=scansorial) still have significantly higher T50 wavelengths (more UV filtering) than non-scansorial species in a phylogenetic anova using only our own data. This is the same result we get using our data + literature data. 
+
+```{r}
+#habitat vs. T50
+pgls_hab.t50_new <- pgls(t50 ~ hab, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+# #diagnostic plots
+# par(mar = c(4,4,2,2))
+# par(mfrow = c(2, 2))
+# plot(pgls_hab.t50)
+# par(mfrow = c(1, 1))
+# 
+# #quick plot of pgls
+# plot(t50_merge ~ hab, data = adult_t50)
+# abline(pgls_hab.t50)
+# 
+# #Likelihood plot for Pagel's lambda
+# lambda.hab.t50 <- pgls.profile(pgls_hab.t50, "lambda")
+# plot(lambda.hab.t50)
+
+#main effects
+anova(pgls_hab.t50_new)
+
+#coefficients
+summary(pgls_hab.t50_new)
+```
+
+#### Diurnality T50
+
+In this dataset day-active (diurnal) species do not have significantly higher T50 wavelengths (more UV filtering) than non-diurnal species in a phylogenetic anova. They do still have higher T50s compared to nondiurnal species, but this difference is not statistically significant (probably due to very small sample size). We had to eliminate some diurnal species in our quality control, so that is probably why we lost the power to detect the difference here when we were able to in previous iterations. 
+
+```{r}
+# Diurnality --------
+
+#activity per vs. T50
+pgls_act.t50_new <- pgls(t50 ~ act, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_act.t50_new)
+
+#coefficients
+summary(pgls_act.t50_new)
+
+```
+
+#### Sexual dichromatism T50
+
+Species exhibiting different coloration in males and females (sexually dichromatic) and nondichromatic species show no significant differences in lens filtering via T50. This is the same result we get using our data + literature data. 
+
+```{r}
+# Sexual dichromatism --------
+
+#dichromatism vs. T50
+pgls_dich.t50_new <- pgls(t50 ~ dich, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_dich.t50_new)
+
+#coefficients
+summary(pgls_dich.t50_new)
+```
+
+### %UVA and ecology 
+
+Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. 
+
+#### Scansoriality %UVA
+
+Scansorial species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic anova using only our data. This is consistent with the findings based on T50, the same result we get using our data + literature data. 
+
+```{r}
+#habitat vs. UVA
+pgls_hab.uva_new <- pgls(pUVA ~ hab, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_hab.uva_new)
+
+#coefficients
+summary(pgls_hab.uva_new)
+```
+
+#### Diurnality %UVA
+
+Diurnal species do not have significantly lower %UVA transmission (more UV filtering) than non-diurnal species in a phylogenetic anova. This is consistent with the results found using T50 (also not significant here). They do still have lower UVA transmission than nondiurnal species, but the difference is not significant here (likely due to low power from small sample size of diurnal species). This is different to the (significant) result we find with the combined dataset (our data + literature data).
+
+```{r}
+# Diurnality --------
+
+#activity per vs. UVA
+pgls_act.uva_new <- pgls(pUVA ~ act, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_act.uva_new)
+
+#coefficients
+summary(pgls_act.uva_new)
+
+```
+
+#### Sexual dichromatism %UVA
+
+Sexually dichromatic and nondichromatic species show no significant differences in lens filtering measured by %UVA (this matches findings with T50 and the findings in a combined dataset of our data + literature data). 
+
+```{r}
+# Sexual dichromatism --------
+
+#dichromatism vs. UVA
+pgls_dich.uva_new <- pgls(pUVA ~ dich, 
+               data = t50.comp_new,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#main effects
+anova(pgls_dich.uva_new)
+
+#coefficients
+summary(pgls_dich.uva_new)
+
+```
