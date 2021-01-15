@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "31 Dec 2020"
+date: "15 January 2020"
 output:
   html_document:
     theme: cerulean
@@ -424,7 +424,7 @@ plot(lambda.size.t50)
 
 Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven soley by differences in path length. 
 
-```{r}
+```{r, fig.height = 4, fig.width = 6}
 
 #plot t50 vs. log lens size with fit
 plot_t50size <- ggplot(lens_adults.new, aes(x = approx_size, y = t50, text = genus_species)) + 
@@ -478,7 +478,7 @@ plot(lambda.size.uva)
 
 Finally, we can plot our data and the model fit. Note that the linear relationship between %UVA and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven soley by differences in path length.
 
-```{r}
+```{r, fig.height = 4, fig.width = 6}
 #plot %UVA vs. log lens size with fit
 plot_uvasize <- ggplot(lens_adults.new, aes(x = approx_size, y = pUVA, text = genus_species)) + 
   geom_point(size = 2, alpha = 0.8) + 
@@ -584,7 +584,7 @@ plot(lambda.unpig.t50)
 
 Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that lens transmission among species with unpigmented lenses is not correlated with path length.
 
-```{r}
+```{r, fig.height = 4, fig.width = 6}
 #plot t50 vs. log lens size with fit
 plot_t50unpig <- ggplot(lens_unpig, aes(x = approx_size, y = t50, text = genus_species)) + 
   geom_point(size = 2, alpha = 0.8) + 
@@ -634,7 +634,7 @@ plot(lambda.unpig.uva)
 ```
 Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that lens transmission among species with unpigmented lenses is not correlated with path length.
 
-```{r}
+```{r, fig.height = 4, fig.width = 6}
 #plot %UVA vs. log lens size with fit
 plot_uva.unpig <- ggplot(lens_unpig, aes(x = approx_size, y = pUVA, text = genus_species)) + 
   geom_point(size = 2, alpha = 0.8) + 
@@ -695,7 +695,8 @@ adults_sep <- adults_sep[tree.adults$tip.label, ]
 
 ```
 
-```{r, fig.height=12, fig.width=7, fig.caption = "Phylogeny showing adult lens transmission and ecological traits. Non-italicized values show our t50 (unbolded) and %UVA (bolded) measurements for adults, while italicized values show transmission data calculated from published literature."} 
+```{r, fig.height=12, fig.width=7, fig.cap="Phylogeny showing adult lens transmission and ecological traits. Non-italicized values show our t50 (unbolded) and %UVA (bolded) measurements for adult species means, while italicized values show species means calculated from published literature."} 
+
 #plot phylogeny with sampling tip labels ----
 
 #phylogeny
@@ -1353,15 +1354,28 @@ dev.off()
 
 # Comparative evolutionary models 
 
-Here, we used PGLS models in caper to run phylogenetic ANOVAs to test for associations between lens transmission and ecological variables while accounting for evolutionary relatedness among species. 
+Here, we used PGLS models in caper to run phylogenetic ANOVAs to test for associations between lens transmission and ecological variables while accounting for evolutionary non-independence among species. These models use all available data, including all species we sampled plus all additional species available in published literature. Because published measurements did not always record transmission down to 305nm, we could not calculate %UVA (400-305nm) for 10 species. Thus, our species sampling for t50 (n = 114) is higher than for %UVA (n = 104) in these models. 
 
-# Combined data (this paper + literature)
-
-These models use all available data, including all species we sampled plus all additional species available in published literature. 
-
-### T50 and ecology 
+## t50 and ecology 
 
 ```{r, results = "hide"}
+
+# Prep data and phylogeny -----
+
+#subset data for T50
+adult_t50 <- adults_merged %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, t50_merge, hab, act, dich)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_t50) <- adult_t50$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adult_t50)
+
+#resort trait dataset to the order of tree tip labels
+adult_t50 <- adult_t50[tree.adults$tip.label, ] 
+
 
 # Prep data for caper -------
 
@@ -1378,9 +1392,9 @@ t50.comp$dropped$tips #phylogeny
 t50.comp$dropped$unmatched.rows #dataset
 ```
 
-#### Scansoriality T50
+### t50 across habitats
 
-Species that climb up plants/trees (=scansorial) have significantly higher T50 wavelengths (more UV filtering) than non-scansorial species in a phylogenetic anova .
+Species that climb up plants/trees (=scansorial) have significantly higher t50 values (more UV filtering) than non-scansorial species in a phylogenetic ANOVA.
 
 ```{r}
 #habitat vs. T50
@@ -1410,9 +1424,9 @@ anova(pgls_hab.t50)
 summary(pgls_hab.t50)
 ```
 
-#### Diurnality T50
+### t50 across activity periods
 
-Day-active (diurnal) species have significantly higher T50 wavelengths (more UV filtering) than non-diurnal species in a phylogenetic anova.
+Diurnal (day-active) species have significantly higher t50 values (more UV filtering) than non-diurnal species in a phylogenetic ANOVA.
 
 ```{r}
 # Diurnality --------
@@ -1431,9 +1445,9 @@ summary(pgls_act.t50)
 
 ```
 
-#### Sexual dichromatism T50
+### t50 across sexual dichromatism
 
-Species exhibiting different coloration in males and females (sexually dichromatic) and nondichromatic species show no significant differences in lens filtering via T50. 
+Sexually dichromatic (different coloration/patterning in males and females) species and nondichromatic species show no significant differences in t50 values (no difference in lens filtering).
 
 ```{r}
 # Sexual dichromatism --------
@@ -1451,11 +1465,37 @@ anova(pgls_dich.t50)
 summary(pgls_dich.t50)
 ```
 
-### %UVA and ecology 
+## %UVA and ecology 
 
-Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. Note that the species dataset for these analyses are slightly reduced; a few species with data gathered from the literature could not be included, as transmission measurements were not made down to 300nm.
+Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. Note that the species dataset for these analyses are slightly reduced; 10 species with data gathered from the literature could not be included, as transmission measurements were not made down to 305nm.
 
 ```{r, results = "hide"}
+
+# Prep data and phylogeny -----
+
+#subset data for uva
+adult_uva <- adults_merged %>%
+  filter(!is.na(pUVA_merge)) %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, pUVA_merge, hab, act, dich)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_uva) <- adult_uva$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adult_uva)
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(tree.adults$tip.label, adult_uva$tip)
+
+#drop unwanted tips from phylogeny
+tree.adults.uva <- drop.tip(phy = tree.adults, tip = drops) 
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults.uva, adult_uva)
+
+#resort trait dataset to the order of tree tip labels
+adult_uva <- adult_uva[tree.adults.uva$tip.label, ] 
 
 # Prep data for caper -------
 
@@ -1472,9 +1512,9 @@ uva.comp$dropped$tips #phylogeny
 uva.comp$dropped$unmatched.rows #dataset
 ```
 
-#### Scansoriality %UVA
+### %UVA across habitats
 
-Scansorial species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic anova. This is consistent with the findings based on T50. 
+Scansorial (climbing) species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic ANOVA. This is consistent with the findings based on t50. 
 
 ```{r}
 #habitat vs. UVA
@@ -1490,9 +1530,9 @@ anova(pgls_hab.uva)
 summary(pgls_hab.uva)
 ```
 
-#### Diurnality %UVA
+### %UVA across activity periods
 
-Diurnal species have significantly lower %UVA transmission (more UV filtering) than non-diurnal species in a phylogenetic anova. This is consistent with the results found using T50. 
+Diurnal (day-active) species have lower %UVA transmission than non-diurnal species (the trend we expect), but the difference is not significant. This is different from our findings using t50, which indicated a significant difference between diurnal and non-diurnal species. This likely is the result of reduced sampling for diurnal species using %UVA, as 4/13 diurnal species were omitted for %UVA analysis because transmission was not reported down to 305nm. 
 
 ```{r}
 # Diurnality --------
@@ -1511,9 +1551,9 @@ summary(pgls_act.uva)
 
 ```
 
-#### Sexual dichromatism %UVA
+### %UVA across sexual dichromatism
 
-Sexually dichromatic and nondichromatic species show no significant differences in lens filtering measured by %UVA (this matches findings with T50). 
+Sexually dichromatic and nondichromatic species show no significant differences in lens filtering measured by %UVA (this matches findings with t50). 
 
 ```{r}
 # Sexual dichromatism --------
@@ -1532,182 +1572,3 @@ summary(pgls_dich.uva)
 
 ```
 
-################NEW###########3
-
-## Our data only
-
-These models use only the species we collected data from (excludes species from published literature). 
-
-### T50 and ecology 
-
-```{r, results = "hide"}
-
-#prune tree to adult data from our study -----
-
-#set rownames to ASW names in new adult dataframe
-rownames(lens_adults.new) <- lens_adults.new$ASW_names
-
-#make list of taxa to drop (in tree but not in dataset)
-drops <- setdiff(lens.tree$tip.label, lens_adults.new$ASW_names)
-
-#drop unwanted tips from phylogeny
-tree.adults.new <- drop.tip(phy = lens.tree, tip = drops) 
-
-#check that phylogeny tips and data match exactly (if they match will return "OK")
-name.check(tree.adults.new, lens_adults.new)
-
-#resort dataset to the order of tree tip labels
-rownames(lens_adults.new) <- lens_adults.new$ASW_names
-lens_adults.new <- lens_adults.new[tree.adults.new$tip.label, ] 
-
-# Prep data for caper -------
-
-#use caper function to combine phylogeny and data into one object 
-#(this function also matches species names in tree and dataset)
-t50.comp_new <- comparative.data(phy = tree.adults.new, data = lens_adults.new,
-                             names.col = ASW_names, 
-                             vcv = TRUE, 
-                             na.omit = FALSE, 
-                             warn.dropped = TRUE)
-
-#check for dropped tips or dropped species
-t50.comp_new$dropped$tips #phylogeny
-t50.comp_new$dropped$unmatched.rows #dataset
-```
-
-#### Scansoriality T50
-
-Species that climb up plants/trees (=scansorial) still have significantly higher T50 wavelengths (more UV filtering) than non-scansorial species in a phylogenetic anova using only our own data. This is the same result we get using our data + literature data. 
-
-```{r}
-#habitat vs. T50
-pgls_hab.t50_new <- pgls(t50 ~ hab, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-# #diagnostic plots
-# par(mar = c(4,4,2,2))
-# par(mfrow = c(2, 2))
-# plot(pgls_hab.t50)
-# par(mfrow = c(1, 1))
-# 
-# #quick plot of pgls
-# plot(t50_merge ~ hab, data = adult_t50)
-# abline(pgls_hab.t50)
-# 
-# #Likelihood plot for Pagel's lambda
-# lambda.hab.t50 <- pgls.profile(pgls_hab.t50, "lambda")
-# plot(lambda.hab.t50)
-
-#main effects
-anova(pgls_hab.t50_new)
-
-#coefficients
-summary(pgls_hab.t50_new)
-```
-
-#### Diurnality T50
-
-In this dataset day-active (diurnal) species do not have significantly higher T50 wavelengths (more UV filtering) than non-diurnal species in a phylogenetic anova. They do still have higher T50s compared to nondiurnal species, but this difference is not statistically significant (probably due to very small sample size). We had to eliminate some diurnal species in our quality control, so that is probably why we lost the power to detect the difference here when we were able to in previous iterations. 
-
-```{r}
-# Diurnality --------
-
-#activity per vs. T50
-pgls_act.t50_new <- pgls(t50 ~ act, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-#main effects
-anova(pgls_act.t50_new)
-
-#coefficients
-summary(pgls_act.t50_new)
-
-```
-
-#### Sexual dichromatism T50
-
-Species exhibiting different coloration in males and females (sexually dichromatic) and nondichromatic species show no significant differences in lens filtering via T50. This is the same result we get using our data + literature data. 
-
-```{r}
-# Sexual dichromatism --------
-
-#dichromatism vs. T50
-pgls_dich.t50_new <- pgls(t50 ~ dich, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-#main effects
-anova(pgls_dich.t50_new)
-
-#coefficients
-summary(pgls_dich.t50_new)
-```
-
-### %UVA and ecology 
-
-Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. 
-
-#### Scansoriality %UVA
-
-Scansorial species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic anova using only our data. This is consistent with the findings based on T50, the same result we get using our data + literature data. 
-
-```{r}
-#habitat vs. UVA
-pgls_hab.uva_new <- pgls(pUVA ~ hab, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-#main effects
-anova(pgls_hab.uva_new)
-
-#coefficients
-summary(pgls_hab.uva_new)
-```
-
-#### Diurnality %UVA
-
-Diurnal species do not have significantly lower %UVA transmission (more UV filtering) than non-diurnal species in a phylogenetic anova. This is consistent with the results found using T50 (also not significant here). They do still have lower UVA transmission than nondiurnal species, but the difference is not significant here (likely due to low power from small sample size of diurnal species). This is different to the (significant) result we find with the combined dataset (our data + literature data).
-
-```{r}
-# Diurnality --------
-
-#activity per vs. UVA
-pgls_act.uva_new <- pgls(pUVA ~ act, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-#main effects
-anova(pgls_act.uva_new)
-
-#coefficients
-summary(pgls_act.uva_new)
-
-```
-
-#### Sexual dichromatism %UVA
-
-Sexually dichromatic and nondichromatic species show no significant differences in lens filtering measured by %UVA (this matches findings with T50 and the findings in a combined dataset of our data + literature data). 
-
-```{r}
-# Sexual dichromatism --------
-
-#dichromatism vs. UVA
-pgls_dich.uva_new <- pgls(pUVA ~ dich, 
-               data = t50.comp_new,
-               lambda = "ML", 
-               param.CI = 0.95)
-
-#main effects
-anova(pgls_dich.uva_new)
-
-#coefficients
-summary(pgls_dich.uva_new)
-
-```
