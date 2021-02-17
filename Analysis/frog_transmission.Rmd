@@ -1742,3 +1742,110 @@ AIC(mod1, mod2, mod3, mod4, mod5)
 ```
 
 From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our %UVA data when lambda is set to 0. When lambda is set to 1, the lowest AIC is for a model including only scansoriality, though this is not significantly different from the model including just diurnality, the model including diurnality + scansoriality, or even the model including all three ecocological variables (probably due to low power). 
+
+# Plot specimen data for select species
+
+Here, we make plots of the full spectral transmission curve for 1) a larger and a smaller specimen of _Hylodes phyllodes_, and 2) an adult and a tadpole of _Alytes muletensis_. We will add the other tapole sampled ( _Dendropsophus minutus_ ) to the plot with _Alytes_, as that data isn't used elsewhere in the analyses. 
+
+```{r}
+
+#import species transmission curves
+species_curves <- data.frame(read.csv("../Data/scan_summary.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+
+```
+
+
+## Hylodes of different sizes
+
+```{r}
+#pull out Hylodes curves
+hylodes <- species_curves %>%
+  select(wavelength_nm, Hylodes.phyllodes.larger, Hylodes.phyllodes.smaller) %>%
+  mutate(uva_larger = ifelse(wavelength_nm<401, Hylodes.phyllodes.larger, NA)) %>%
+  mutate(uva_smaller = ifelse(wavelength_nm<401, Hylodes.phyllodes.smaller, NA))
+
+#set colors
+col_hylodes <- c("1mm lens" = "#989595",
+                 "2mm lens" = "black")
+
+#plot both specimens
+plot_hylodes <- ggplot(hylodes, aes(x = wavelength_nm)) + 
+  #transmission curves
+  geom_path(aes(y = Hylodes.phyllodes.smaller, color = "1mm lens"), size = 1) + 
+  geom_path(aes(y = Hylodes.phyllodes.larger, color = "2mm lens"), size = 1) +
+  #fill in area under curves between 305-400nm to show %UVA
+  geom_area(aes(y = uva_larger), fill = "black", alpha = 0.4) +
+  geom_area(aes(y = uva_smaller), fill = "#989595", alpha = 0.4) +
+  #plot T50 onto each curve
+  geom_point(aes(filter(lens_hyl, stage=="adult")$t50, y=50), size = 3.5, col = "black", shape = 15) +
+  geom_point(aes(filter(lens_hyl, stage=="adult_smaller")$t50, y=50), size = 3.5, col = "#989595", shape = 15) +
+  scale_color_manual(values = col_hylodes) +
+  labs(x = "Wavelength (nm)",
+       y = "Normalized transmission (%)",
+       color = "Hylodes phyllodes") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_text(face = "italic"))
+
+plot_hylodes
+```
+
+
+## Alytes tadpole vs. adult
+
+```{r}
+#pull out Hylodes curves
+alytes <- species_curves %>%
+  select(wavelength_nm, Alytes.muletensis.adult, Alytes.muletensis.tadpole)
+
+#set colors
+col_alytes <- c("tadpole" = "#989595",
+                 "adult" = "black")
+
+#plot both specimens
+plot_alytes <- ggplot(alytes, aes(x = wavelength_nm)) + 
+  geom_path(aes(y = Alytes.muletensis.tadpole, color = "tadpole"), size = 1) +
+  geom_path(aes(y = Alytes.muletensis.adult, color = "adult"), size = 1) +
+  scale_color_manual(values = col_alytes) +
+  labs(x = "Wavelength (nm)",
+       y = "Normalized transmission",
+       color = "Alytes muletensis") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        legend.title = element_text(face = "italic"))
+
+plot_alytes
+```
+
+## Dendropsophus tadpole vs. other adults
+
+Here we don't have an exact species match, but we do have closely related species (same genus). We can use this, or we can add the Dendropsophus tadpole to the Alytes plot so that data is shown somewhere and can be mentioned briefly in discussion of tadpoles. 
+
+```{r}
+#pull out Hylodes curves
+dendro <- species_curves %>%
+  select(wavelength_nm, Dendropsophus.leucophyllatus, Dendropsophus.minusculus, Dendropsophus.minutus.tadpole)
+
+#set colors
+col_dendro <- c("D. leucophyllatus adult" = "red",
+                "D. minusculus adult" = "black",
+                "D. minutus tadpole" = "#989595")
+
+#plot both specimens
+plot_dendro <- ggplot(dendro, aes(x = wavelength_nm)) + 
+  geom_path(aes(y = Dendropsophus.leucophyllatus, color = "D. leucophyllatus adult"), size = 1) +
+  geom_path(aes(y = Dendropsophus.minusculus, color = "D. minusculus adult"), size = 1) +
+  geom_path(aes(y = Dendropsophus.minutus.tadpole, color = "D. minutus tadpole"), size = 1) +
+  scale_color_manual(values = col_dendro) +
+  labs(x = "Wavelength (nm)",
+       y = "Normalized transmission",
+       color = "Species/stage") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank())
+
+plot_dendro
+```
+
