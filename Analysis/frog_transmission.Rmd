@@ -1777,8 +1777,8 @@ plot_hylodes <- ggplot(hylodes, aes(x = wavelength_nm)) +
   geom_area(aes(y = uva_larger), fill = "black", alpha = 0.4) +
   geom_area(aes(y = uva_smaller), fill = "#989595", alpha = 0.4) +
   #plot T50 onto each curve
-  geom_point(aes(filter(lens_hyl, stage=="adult")$t50, y=50), size = 3.5, col = "black", shape = 15) +
-  geom_point(aes(filter(lens_hyl, stage=="adult_smaller")$t50, y=50), size = 3.5, col = "#989595", shape = 15) +
+  geom_point(aes(filter(lens_hyl, stage=="adult")$t50, y=50), size = 3, col = "black", shape = 15) +
+  geom_point(aes(filter(lens_hyl, stage=="adult_smaller")$t50, y=50), size = 3, col = "#989595", shape = 15) +
   scale_color_manual(values = col_hylodes) +
   labs(x = "Wavelength (nm)",
        y = "Normalized transmission (%)",
@@ -1786,7 +1786,8 @@ plot_hylodes <- ggplot(hylodes, aes(x = wavelength_nm)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
-        legend.title = element_text(face = "italic"))
+        legend.title = element_text(face = "italic"),
+        legend.position=c(.9,.2))
 
 plot_hylodes
 ```
@@ -1797,7 +1798,10 @@ plot_hylodes
 ```{r}
 #pull out Hylodes curves
 alytes <- species_curves %>%
-  select(wavelength_nm, Alytes.muletensis.adult, Alytes.muletensis.tadpole)
+  select(wavelength_nm, Alytes.muletensis.adult, Alytes.muletensis.tadpole) %>%
+  mutate(uva_adult = ifelse(wavelength_nm<401, Alytes.muletensis.adult, NA)) %>%
+  mutate(uva_tad = ifelse(wavelength_nm<401, Alytes.muletensis.tadpole, NA))
+
 
 #set colors
 col_alytes <- c("tadpole" = "#989595",
@@ -1807,6 +1811,12 @@ col_alytes <- c("tadpole" = "#989595",
 plot_alytes <- ggplot(alytes, aes(x = wavelength_nm)) + 
   geom_path(aes(y = Alytes.muletensis.tadpole, color = "tadpole"), size = 1) +
   geom_path(aes(y = Alytes.muletensis.adult, color = "adult"), size = 1) +
+   #plot T50 onto each curve
+  geom_point(aes(filter(lens_dev, stage=="adult")$t50, y=50), size = 3, col = "black", shape = 15) +
+  geom_point(aes(filter(lens_dev, stage=="tadpole")$t50, y=50), size = 3, col = "#989595", shape = 15) +
+  #fill in area under curves between 305-400nm to show %UVA
+  geom_area(aes(y = uva_adult), fill = "black", alpha = 0.4) +
+  geom_area(aes(y = uva_tad), fill = "#989595", alpha = 0.4) +
   scale_color_manual(values = col_alytes) +
   labs(x = "Wavelength (nm)",
        y = "Normalized transmission",
@@ -1814,7 +1824,8 @@ plot_alytes <- ggplot(alytes, aes(x = wavelength_nm)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
-        legend.title = element_text(face = "italic"))
+        legend.title = element_text(face = "italic"),
+        legend.position=c(.9,.2))
 
 plot_alytes
 ```
@@ -1826,7 +1837,11 @@ Here we don't have an exact species match, but we do have closely related specie
 ```{r}
 #pull out Hylodes curves
 dendro <- species_curves %>%
-  select(wavelength_nm, Dendropsophus.leucophyllatus, Dendropsophus.minusculus, Dendropsophus.minutus.tadpole)
+  select(wavelength_nm, Dendropsophus.leucophyllatus, Dendropsophus.minusculus, Dendropsophus.minutus.tadpole) %>%
+  mutate(uva_lecuo = ifelse(wavelength_nm<401, Dendropsophus.leucophyllatus, NA)) %>%
+  mutate(uva_minus = ifelse(wavelength_nm<401, Dendropsophus.minusculus, NA)) %>%
+  mutate(uva_tad = ifelse(wavelength_nm<401, Dendropsophus.minutus.tadpole, NA))
+
 
 #set colors
 col_dendro <- c("D. leucophyllatus adult" = "red",
@@ -1838,14 +1853,46 @@ plot_dendro <- ggplot(dendro, aes(x = wavelength_nm)) +
   geom_path(aes(y = Dendropsophus.leucophyllatus, color = "D. leucophyllatus adult"), size = 1) +
   geom_path(aes(y = Dendropsophus.minusculus, color = "D. minusculus adult"), size = 1) +
   geom_path(aes(y = Dendropsophus.minutus.tadpole, color = "D. minutus tadpole"), size = 1) +
+  #fill in area under curves between 305-400nm to show %UVA
+  geom_area(aes(y = uva_lecuo), fill = "red", alpha = 0.4) +
+  geom_area(aes(y = uva_minus), fill = "black", alpha = 0.4) +
+  geom_area(aes(y = uva_tad), fill = "#989595", alpha = 0.4) +
+   #plot T50 onto each curve
+  geom_point(aes(filter(lens_adults, genus_species=="Dendropsophus_leucophyllatus")$t50, y=50), size = 3, col = "red", shape = 15) +
+  geom_point(aes(filter(lens_adults, genus_species=="Dendropsophus_minusculus")$t50, y=50), size = 3, col = "black", shape = 15) +
+  geom_point(aes(filter(lens_tads, genus_species=="Dendropsophus_minutus")$t50, y=50), size = 3, col = "#989595", shape = 15) +
   scale_color_manual(values = col_dendro) +
   labs(x = "Wavelength (nm)",
        y = "Normalized transmission",
        color = "Species/stage") +
   theme_bw() +
   theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        legend.position=c(.9,.2))
 
 plot_dendro
+```
+
+```{r}
+
+#make panels to figures
+fig.a <- plot_hylodes + theme(legend.position=c(.8,.2))
+fig.b <- plot_alytes + theme(legend.position=c(.8,.2))
+fig.c <- plot_dendro + theme(legend.position=c(.8,.2))
+
+# arrange panels in figure
+plots <- plot_grid(fig.a, fig.b, fig.c,
+           align = 'vh', 
+           labels = c("A", "B", "C"), #panel labels for figure
+           hjust = -1, #adjustment for panel labels
+           nrow = 1) #number of rows in grids
+
+#view figure
+plot_grid(plots)
+
+#export figure
+pdf("../Figures/curves.pdf", width = 15, height = 4)
+plot_grid(plots)
+dev.off()
 ```
 
