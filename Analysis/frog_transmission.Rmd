@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "19 January 2020"
+date: "17 February 2020"
 output:
   html_document:
     theme: cerulean
@@ -355,11 +355,11 @@ lens_dev <- lenses.phy %>%
 
 # Lens transmission vs. lens size
 
-Here, we run PGLS regressions of t50 vs. log lens diameter and of %UVA vs. log lens diameter to test for relationships between transmission and path length. 
+Here, we run PGLS regressions of t50 vs. log10 lens diameter and of %UVA vs. log10 lens diameter to test for relationships between transmission and path length. 
 
 ## Dataset: all adult species means
 
-Here, we included only adult data from our study (we excluded published adult data because lens size was not reported). We include all species, whether or not lens transmission spectra appear to indicate the presence of a pigment. This was to test the null hypothesis that variation in transmission is due to different spectral properties in lenses across species. If we find a significant, highly correlated relationship between transmission and pathlength, it could indicate that all lenses have the same spectral properties, and differences in transmission may be driven only by differences in path length across species with different eye sizes. 
+Here, we included only adult data from our study (we excluded published adult data because lens sizes from specimens used for transmission measurements were not reported). We include all species, whether or not lens transmission spectra appear to indicate the presence of a pigment. This was to test the null hypothesis that variation in transmission is due to different spectral properties in lenses across species. If we find a significant, highly correlated relationship between transmission and pathlength, it could indicate that all lenses have the same spectral properties, and differences in transmission may be driven only by differences in path length across species with different eye sizes. 
 
 ### t50 vs. path length
 
@@ -421,7 +421,7 @@ plot(lambda.size.t50)
 
 ```
 
-Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven soley by differences in path length. 
+Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven solely by differences in path length. 
 
 ```{r, fig.height = 4, fig.width = 6}
 
@@ -453,7 +453,7 @@ pgls_size.puva <- pgls(pUVA ~ log10(approx_size),
 
 ```
 
-After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda. 
+After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda.
 
 ```{r}
 ###check model assumptions ###
@@ -475,7 +475,7 @@ plot(lambda.size.uva)
 
 ```
 
-Finally, we can plot our data and the model fit. Note that the linear relationship between %UVA and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven soley by differences in path length.
+Finally, we can plot our data and the model fit. Note that the linear relationship between %UVA and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven solely by differences in path length.
 
 ```{r, fig.height = 4, fig.width = 6}
 #plot %UVA vs. log lens size with fit
@@ -595,8 +595,6 @@ plot_t50unpig <- ggplot(lens_unpig, aes(x = approx_size, y = t50, text = genus_s
 
 #interactive plot
 ggplotly(plot_t50unpig)
-
-
 ```
 
 ### %UVA vs. path length (unpigmented)
@@ -649,6 +647,7 @@ ggplotly(plot_uva.unpig)
 ```
 
 The lack of relationship between transmission and lens size across species is good evidence that differences we observe across species are due to differences in the spectral properties of the lens, even among species with highly transparent lenses. It also justifies why we do not account for lens diameter in our models of lens transmission vs. ecology (which is impossible, as the published data we include did not have measurements for lens diameter).
+
 
 # Visualize ecological data
 
@@ -1580,6 +1579,7 @@ The anova() function will take the model objects as arguments, and return an ANO
 
 ### Models of t50
 
+Here, lambda is set to 1. 
 ```{r}
 
 # With lambda = 1 -----
@@ -1617,7 +1617,10 @@ mod5 <- pgls(t50_merge ~ hab + act + dich,
 #compare models
 anova(mod1, mod2, mod3, mod4, mod5)
 AIC(mod1, mod2, mod3, mod4, mod5)
+```
 
+Here, lambda is set to 0. 
+```{r}
 #With lambda = 0 -----
 #model including scansoriality
 mod1 <- pgls(t50_merge ~ hab, 
@@ -1652,13 +1655,14 @@ mod5 <- pgls(t50_merge ~ hab + act + dich,
 #compare models
 anova(mod1, mod2, mod3, mod4, mod5)
 AIC(mod1, mod2, mod3, mod4, mod5)
-
 ```
 
 From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our t50 data. This was consistend both with lambda set to 0 and lambda set to 1. 
 
 ### Models of %UVA
 
+Here, lambda is set to 1. 
+
 ```{r}
 
 # With lambda = 1 -----
@@ -1696,7 +1700,11 @@ mod5 <- pgls(pUVA_merge ~ hab + act + dich,
 #compare models
 anova(mod1, mod2, mod3, mod4, mod5)
 AIC(mod1, mod2, mod3, mod4, mod5)
+```
 
+Here, lambda is set to 0. 
+
+```{r}
 #With lambda = 0 -----
 #model including scansoriality
 mod1 <- pgls(pUVA_merge ~ hab, 
@@ -1731,6 +1739,6 @@ mod5 <- pgls(pUVA_merge ~ hab + act + dich,
 #compare models
 anova(mod1, mod2, mod3, mod4, mod5)
 AIC(mod1, mod2, mod3, mod4, mod5)
-
 ```
-From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our %UVA data when lambda is set to 0. When lambda is set to 1, the lowest AIC is for a model including only scansoriality, though this is not significantly different from the model including just diurnality, the model including diurnality + scansoriality, or even the model including all three ecocological variables. 
+
+From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our %UVA data when lambda is set to 0. When lambda is set to 1, the lowest AIC is for a model including only scansoriality, though this is not significantly different from the model including just diurnality, the model including diurnality + scansoriality, or even the model including all three ecocological variables (probably due to low power). 
