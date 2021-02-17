@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "15 January 2020"
+date: "19 January 2020"
 output:
   html_document:
     theme: cerulean
@@ -123,12 +123,11 @@ traits <- traits_raw %>%
   mutate(act = recode_factor(Activity_period, "Both" = "nondiurnal", "Diurnal" = "diurnal", "Nocturnal" = "nondiurnal")) %>%
   mutate(Sex_dichromatism = na_if(Sex_dichromatism, "Unknown")) %>%
   mutate (dich = recode_factor(Sex_dichromatism, "Absent" = "nondichromatic", "Present" = "dichromatic")) %>%
-  select(genus_species, hab, act, dich) 
+  select(genus_species, hab, act, dich)
 
 #merge lens and trait data by species name
-lens_traits <- left_join(lenses, traits, by="genus_species") 
+lens_traits <- left_join(lenses, traits, by="genus_species")
 ```
-
 
 ### Phylogeny
 
@@ -1572,3 +1571,166 @@ summary(pgls_dich.uva)
 
 ```
 
+## Test for multiple effects (model selection)
+
+Previously, we tested each variable separately for a significant effect on transmission. These tests indicated that diurnality and scansoriality both affect transmission in amphibians. Here, we use model ranking by AIC to determine the best-fit model explaining transmission in amphibians. 
+
+The anova() function will take the model objects as arguments, and return an ANOVA testing whether the more complex model is significantly better at capturing the data than the simpler model. If the resulting p-value is sufficiently low (usually less than 0.05), we conclude that the more complex model is significantly better than the simpler model, and thus favor the more complex model. If the p-value is not sufficiently low (usually greater than 0.05), we should favor the simpler model.
+
+
+### Models of t50
+
+```{r}
+
+# With lambda = 1 -----
+
+#model including scansoriality
+mod1 <- pgls(t50_merge ~ hab, 
+               data = t50.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including diurnality
+mod2 <- pgls(t50_merge ~ act, 
+               data = t50.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including sexual dichromatism
+mod3 <- pgls(t50_merge ~ dich, 
+               data = t50.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality
+mod4 <- pgls(t50_merge ~ hab + act, 
+               data = t50.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality + sexual dichromatism
+mod5 <- pgls(t50_merge ~ hab + act + dich, 
+               data = t50.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#compare models
+anova(mod1, mod2, mod3, mod4, mod5)
+AIC(mod1, mod2, mod3, mod4, mod5)
+
+#With lambda = 0 -----
+#model including scansoriality
+mod1 <- pgls(t50_merge ~ hab, 
+               data = t50.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including diurnality
+mod2 <- pgls(t50_merge ~ act, 
+               data = t50.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including sexual dichromatism
+mod3 <- pgls(t50_merge ~ dich, 
+               data = t50.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality
+mod4 <- pgls(t50_merge ~ hab + act, 
+               data = t50.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality + sexual dichromatism
+mod5 <- pgls(t50_merge ~ hab + act + dich, 
+               data = t50.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#compare models
+anova(mod1, mod2, mod3, mod4, mod5)
+AIC(mod1, mod2, mod3, mod4, mod5)
+
+```
+
+From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our t50 data. This was consistend both with lambda set to 0 and lambda set to 1. 
+
+### Models of %UVA
+
+```{r}
+
+# With lambda = 1 -----
+
+#model including scansoriality
+mod1 <- pgls(pUVA_merge ~ hab, 
+               data = uva.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including diurnality
+mod2 <- pgls(pUVA_merge ~ act, 
+               data = uva.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including sexual dichromatism
+mod3 <- pgls(pUVA_merge ~ dich, 
+               data = uva.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality
+mod4 <- pgls(pUVA_merge ~ hab + act, 
+               data = uva.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality + sexual dichromatism
+mod5 <- pgls(pUVA_merge ~ hab + act + dich, 
+               data = uva.comp,
+               lambda = 1, 
+               param.CI = 0.95)
+
+#compare models
+anova(mod1, mod2, mod3, mod4, mod5)
+AIC(mod1, mod2, mod3, mod4, mod5)
+
+#With lambda = 0 -----
+#model including scansoriality
+mod1 <- pgls(pUVA_merge ~ hab, 
+               data = uva.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including diurnality
+mod2 <- pgls(pUVA_merge ~ act, 
+               data = uva.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including sexual dichromatism
+mod3 <- pgls(pUVA_merge ~ dich, 
+               data = uva.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality
+mod4 <- pgls(pUVA_merge ~ hab + act, 
+               data = uva.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#model including scansoriality + diurnality + sexual dichromatism
+mod5 <- pgls(pUVA_merge ~ hab + act + dich, 
+               data = uva.comp,
+               lambda = 0.00001, 
+               param.CI = 0.95)
+
+#compare models
+anova(mod1, mod2, mod3, mod4, mod5)
+AIC(mod1, mod2, mod3, mod4, mod5)
+
+```
+From AIC model ranking, we find that a model including both scansoriality and diurnality (but excluding sexual dichromatism) is the best to our %UVA data when lambda is set to 0. When lambda is set to 1, the lowest AIC is for a model including only scansoriality, though this is not significantly different from the model including just diurnality, the model including diurnality + scansoriality, or even the model including all three ecocological variables. 
