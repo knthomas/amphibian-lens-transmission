@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "17 February 2020"
+date: "18 February 2020"
 output:
   html_document:
     theme: cerulean
@@ -648,6 +648,37 @@ ggplotly(plot_uva.unpig)
 
 The lack of relationship between transmission and lens size across species is good evidence that differences we observe across species are due to differences in the spectral properties of the lens, even among species with highly transparent lenses. It also justifies why we do not account for lens diameter in our models of lens transmission vs. ecology (which is impossible, as the published data we include did not have measurements for lens diameter).
 
+```{r}
+#make panels to figures
+fig.a <- plot_t50size +
+  xlab("") +
+  ylab("t50 (nm)")
+
+fig.b <- plot_uvasize +
+  xlab("")
+
+fig.c <- plot_t50unpig +
+  ylab("t50 (nm)")
+
+fig.d <- plot_uva.unpig
+
+# arrange panels in figure
+plots <- plot_grid(fig.a, fig.b, fig.c, fig.d,
+           align = 'vh', 
+           labels = c("A", "B", "C", "D"), #panel labels for figure
+           hjust = -.5,
+           vjust = 1,
+           nrow = 2) #number of rows in grids
+
+#view figure
+plot_grid(plots)
+
+#export figure
+pdf("../Figures/lens_size.pdf", width = 6, height = 5)
+plot_grid(plots)
+dev.off()
+
+```
 
 # Visualize ecological data
 
@@ -1318,6 +1349,7 @@ p <- ggtree(tree.adults) %<+% labs +
    xlim_tree(450) + 
    coord_cartesian(clip = 'off') 
 
+
 # Make a second plot next to the phylogeny (dot plot of t50 values)
 p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot.combined, geom=geom_point, aes(x=t50_merge, color = eco_cat), shape = 19, cex = 2.5) +
   scale_color_manual(values = col_ecocat,
@@ -1325,13 +1357,18 @@ p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot.combined, geom=geom_point
                      breaks = c("scansorial", "diurnal", "both", "neither"),
                      labels = c("scansorial", "diurnal", "both", "neither"))
 
-
 # Make a third plot next to the first two (bar plot of %UVA)
 p3 <- facet_plot(p2, panel='%UVA', data=adults_plot.combined, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = eco_cat), size=3) +
   theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
 
 #control widths of panels
- gt = ggplot_gtable(ggplot_build(p3))
+ gt = ggplot_gtable(ggplot_build(p3 +# set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )))
 # gtable_show_layout(gt) # will show you the layout - very handy function
 # gt # see plot layout in table format
 # gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
@@ -1339,7 +1376,7 @@ p3 <- facet_plot(p2, panel='%UVA', data=adults_plot.combined, geom=geom_segment,
  gt$widths[9] = 0.5*gt$widths[9] 
 
  #print figure
-p3
+p3 
 ```
 
 ```{r, results = "hide"}
@@ -1761,8 +1798,8 @@ species_curves <- data.frame(read.csv("../Data/scan_summary.csv", header=TRUE, n
 #pull out Hylodes curves
 hylodes <- species_curves %>%
   select(wavelength_nm, Hylodes.phyllodes.larger, Hylodes.phyllodes.smaller) %>%
-  mutate(uva_larger = ifelse(wavelength_nm<401, Hylodes.phyllodes.larger, NA)) %>%
-  mutate(uva_smaller = ifelse(wavelength_nm<401, Hylodes.phyllodes.smaller, NA))
+  mutate(uva_larger = ifelse(wavelength_nm<401 & wavelength_nm>314, Hylodes.phyllodes.larger, NA)) %>%
+  mutate(uva_smaller = ifelse(wavelength_nm<401 & wavelength_nm>314, Hylodes.phyllodes.smaller, NA))
 
 #set colors
 col_hylodes <- c("1mm lens" = "#989595",
@@ -1799,8 +1836,8 @@ plot_hylodes
 #pull out Hylodes curves
 alytes <- species_curves %>%
   select(wavelength_nm, Alytes.muletensis.adult, Alytes.muletensis.tadpole) %>%
-  mutate(uva_adult = ifelse(wavelength_nm<401, Alytes.muletensis.adult, NA)) %>%
-  mutate(uva_tad = ifelse(wavelength_nm<401, Alytes.muletensis.tadpole, NA))
+  mutate(uva_adult = ifelse(wavelength_nm<401 & wavelength_nm>314, Alytes.muletensis.adult, NA)) %>%
+  mutate(uva_tad = ifelse(wavelength_nm<401 & wavelength_nm>314, Alytes.muletensis.tadpole, NA))
 
 
 #set colors
@@ -1838,9 +1875,9 @@ Here we don't have an exact species match, but we do have closely related specie
 #pull out Hylodes curves
 dendro <- species_curves %>%
   select(wavelength_nm, Dendropsophus.leucophyllatus, Dendropsophus.minusculus, Dendropsophus.minutus.tadpole) %>%
-  mutate(uva_lecuo = ifelse(wavelength_nm<401, Dendropsophus.leucophyllatus, NA)) %>%
-  mutate(uva_minus = ifelse(wavelength_nm<401, Dendropsophus.minusculus, NA)) %>%
-  mutate(uva_tad = ifelse(wavelength_nm<401, Dendropsophus.minutus.tadpole, NA))
+  mutate(uva_lecuo = ifelse(wavelength_nm<401 & wavelength_nm>314, Dendropsophus.leucophyllatus, NA)) %>%
+  mutate(uva_minus = ifelse(wavelength_nm<401 & wavelength_nm>314, Dendropsophus.minusculus, NA)) %>%
+  mutate(uva_tad = ifelse(wavelength_nm<401 & wavelength_nm>314, Dendropsophus.minutus.tadpole, NA))
 
 
 #set colors
@@ -1873,25 +1910,33 @@ plot_dendro <- ggplot(dendro, aes(x = wavelength_nm)) +
 plot_dendro
 ```
 
-```{r}
+```{r, fig.height=3, fig.width=10}
 
 #make panels to figures
-fig.a <- plot_hylodes + theme(legend.position=c(.8,.2))
-fig.b <- plot_alytes + theme(legend.position=c(.8,.2))
-fig.c <- plot_dendro + theme(legend.position=c(.8,.2))
+fig.a <- plot_hylodes + 
+  theme(legend.position=c(.65,.3))
+
+fig.b <- plot_alytes + 
+  theme(legend.position=c(.65,.3)) +
+  ylab("")
+
+fig.c <- plot_dendro + 
+  theme(legend.position=c(.65,.3)) +
+  ylab("")
 
 # arrange panels in figure
 plots <- plot_grid(fig.a, fig.b, fig.c,
            align = 'vh', 
            labels = c("A", "B", "C"), #panel labels for figure
-           hjust = -1, #adjustment for panel labels
+           hjust = -.5,
+           vjust = 1,
            nrow = 1) #number of rows in grids
 
 #view figure
 plot_grid(plots)
 
 #export figure
-pdf("../Figures/curves.pdf", width = 15, height = 4)
+pdf("../Figures/curves.pdf", width = 10, height = 3)
 plot_grid(plots)
 dev.off()
 ```
