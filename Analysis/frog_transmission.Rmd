@@ -1,7 +1,7 @@
 ---
 title: "Lens transmission across anuran ecology"
 author: "Katie Thomas"
-date: "18 February 2020"
+date: "19 February 2020"
 output:
   html_document:
     theme: cerulean
@@ -886,14 +886,14 @@ Here we plot adult lens transmission metrics (t50 and %UVA) across ecological ca
 
 # create vectors of colors for habitat
 col_hab <- c("scansorial" = "#009E73",
-              "other"  = "#BDC3BE")
+              "other"  = "#636363")
 
 #create vector of colors for activity period
-col_act <- c("nondiurnal" = "#BDC3BE",
-             "diurnal" = "#FFB122")
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
 
 #create vector of colors for activity period
-col_dich <- c("nondichromatic" = "#BDC3BE",
+col_dich <- c("nondichromatic" = "#636363",
               "dichromatic" = "#03a1fc")
 
 #create shape vector for source of data
@@ -910,18 +910,21 @@ sh_source <- c("literature" = 1,
 boxplot_habs.t50 <- ggplot(data = lens_adults, 
                        aes(x = hab, y = t50)) + 
   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
   scale_color_manual(values = col_hab,
                      name = "Habitat",
                      breaks = c("scansorial", "other"),
-                     labels = c("scansorial", "non-scansorial")) +
+                     labels = c("scansorial", "non-scans.")) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background +
+  scale_x_discrete(labels=c("scansorial" = "scansorial",
+                            "other" = "non-scans.")) +
+  scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
   xlab("") +
   ylab("t50 (nm)")
 
@@ -929,12 +932,13 @@ boxplot_habs.t50 <- ggplot(data = lens_adults,
 boxplot_habs.uva <- ggplot(data = lens_adults, 
                        aes(x = hab, y = pUVA)) + 
   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  
+ geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = hab, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
   scale_color_manual(values = col_hab,
                      name = "Habitat",
                      breaks = c("scansorial", "other"),
-                     labels = c("scansorial", "non-scansorial")) +
+                     labels = c("scansorial", "non-scans.")) +
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
@@ -942,7 +946,9 @@ boxplot_habs.uva <- ggplot(data = lens_adults,
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
   theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
   xlab("Scansoriality") +
-  ylab("%UVA") +
+  scale_x_discrete(labels=c("scansorial" = "scansorial",
+                            "other" = "non-scans.")) +
+  ylab("UVA (%)") +
   labs(fill = "Data source")
 
 #print plots
@@ -954,11 +960,13 @@ plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
 # Diurnality ------
 
 # boxplot of T50 across acts
-boxplot_act.t50 <- ggplot(data = lens_adults, 
-                       aes(x = act, y = t50)) + 
+boxplot_act.t50 <- lens_adults %>%
+  mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
+  ggplot(aes(x = act, y = t50)) + 
    geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+  #controls what stats shown
+ geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
   scale_color_manual(values = col_act,
                      name = "Activity",
                      breaks = c("diurnal", "nondiurnal"),
@@ -969,16 +977,20 @@ boxplot_act.t50 <- ggplot(data = lens_adults,
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
   theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  scale_x_discrete(labels=c("diurnal" = "diurnal",
+                            "nondiurnal" = "non-diurnal")) +
+  scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
   xlab("Diurnality") +
   ylab("t50 (nm)") +
   labs(fill = "Data source")
 
 # boxplot of %UVA across habs
-boxplot_act.uva <- ggplot(data = lens_adults, 
-                       aes(x = act, y = pUVA)) + 
+boxplot_act.uva <- lens_adults %>%
+  mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
+  ggplot(aes(x = act, y = pUVA)) + 
    geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
- geom_jitter(aes(color = act, shape = source), size = 1.3, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
   scale_color_manual(values = col_act,
                      name = "Activity",
                      breaks = c("diurnal", "nondiurnal"),
@@ -989,8 +1001,10 @@ boxplot_act.uva <- ggplot(data = lens_adults,
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
   theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  scale_x_discrete(labels=c("diurnal" = "diurnal",
+                            "nondiurnal" = "non-diurnal")) +
   xlab("Diurnality") +
-  ylab("%UVA") +
+  ylab("UVA (%)") +
   labs(fill = "Data source")
 
 #print plots
@@ -1056,41 +1070,37 @@ plot_grid(boxplot_dich.t50, boxplot_dich.uva,  #list of plots to arrange in grid
 
 fig.a <- boxplot_habs.t50 + 
   xlab("")+ 
-  ylab("t50") +
+  ylab("t50 (nm)") +
+  scale_x_discrete(labels=c("scansorial" = "",
+                            "other" = "")) +
   theme(legend.position = "none")
 
-fig.b <- boxplot_habs.uva + 
+fig.b <- boxplot_act.t50 + 
   xlab("")+ 
-  ylab("%UVA") +
+  ylab("") +
+  scale_x_discrete(labels=c("diurnal" = "",
+                            "nondiurnal" = "")) +
   theme(legend.position = "none")
 
-fig.c <- boxplot_act.t50 + 
+fig.c <- boxplot_habs.uva + 
   xlab("")+ 
-  ylab("t50") +
+  ylab("UVA (%)") +
   theme(legend.position = "none")
 
 fig.d <- boxplot_act.uva + 
   xlab("")+ 
-  ylab("%UVA") +
+  ylab("") +
   theme(legend.position = "none")
 
-fig.e <- boxplot_dich.t50 + 
-  xlab("")+ 
-  ylab("t50") +
-  theme(legend.position = "none")
-
-fig.f <- boxplot_dich.uva + 
-  xlab("")+ 
-  ylab("%UVA") +
-  theme(legend.position = "none")
 
 # boxplot of T50 across habs
-pdf("../Figures/boxplots.pdf", width = 7, height = 10)
-plot_grid(fig.a, fig.b, fig.c, fig.d, fig.e, fig.f,
+pdf("../Figures/boxplots.pdf", width = 5, height = 6)
+plot_grid(fig.a, fig.b, fig.c, fig.d,
           align = 'vh', 
-          labels = c("A", "B", "C", "D", "E", "F"),
-          hjust = -1, #adjustment for panel labels
-          ncol = 2)
+          labels = c("A", "B", "C", "D"),
+          hjust = -0.5, 
+          vjust = 1.8, 
+          nrow = 2)
 dev.off()
 
 ```
@@ -1335,9 +1345,17 @@ labs <- adults_plot.combined %>% select(tip, labels)
 
 #make color pallette for new combined states
 col_ecocat <- c("both" = "#C107B6",
-                "diurnal" = "#FFB122",
-                "neither" = "#BDC3BE",
+                "diurnal" = "#FFA010",
+                "neither" = "#808080", #boxplot fig uses #636363 but with alpha it's lighter
                 "scansorial" = "#009E73")
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
 ```
 
 
