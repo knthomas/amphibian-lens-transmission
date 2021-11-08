@@ -1,0 +1,354 @@
+title: "Amphibian lens transmission: 1 - data tidying"
+author: "Katie Thomas"
+date: "08 Nov 2021"
+output:
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    code_fold: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+
+#libraries
+library(knitr)
+library(kableExtra)
+library(AmphiNom)
+library(geiger)
+library(ape)
+library(phytools)
+library(plyr)
+library(tidyverse)
+
+#set rmarkdown options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.height = 5, fig.width = 8, attr.output='style="max-height: 350px;"') 
+
+```
+
+Here, we tidy and merge datasets for lens transmission from this study, lens transmission from Yovanovich et al. (2019, 2020), and ecological data. We then prune a published phylogeny from Jetz and Pyron (2019) to the species in our compiled dataset.
+
+# Lens transmission data
+
+## This study
+
+Lens data were collected from frozen and then thawed lenses in this study. The data span two orders (Anura and Caudata), 29 families, 62 genera, and 86 species. Most data are from post-metamorphic frogs, but we also have data on tadpoles of two species.
+
+```{r lens-data}
+
+#import species data for lens transmission
+lens_raw <- data.frame(read.csv("../Data/raw data/species_data.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+
+#tidy data
+lens_data <- lens_raw %>%
+  #put genus and species in separate columns
+  separate(species, c("genus", "species"), sep = " ", extra = "drop") %>%
+  #add genus_species
+  mutate(genus_species = as.factor(paste(genus, species, sep = "_"))) %>%
+  mutate(dataset = "this_study") %>%
+  mutate(source = "this_study") %>%
+  mutate(scanned = "frozen lens") %>%
+  select(order, family, genus_species, stage, dataset, source, diam_mm, approx_size, t450nm, t50, pUVA)
+
+```
+
+## Compiled from literature
+
+Lens transmission data measured from fresh anuran lenses were gathered from previously published literature.  Note that for _Bombina orientalis_ the T50% was <300nm. To be able to include it here, I have set it at 300 so that it is numerical and can be included in models and visuals. These data span 14 families, 28 genera,  and 37 species (all post-metamorphic frogs). 
+
+```{r lens-data-lit}
+
+#import species data for lens transmission
+lens_lit_raw <- data.frame(read.csv("../Data/raw data/published_data.csv", header=TRUE, na.strings=c("", "NA"))) #load raw data
+
+#tidy data
+lens_lit <- lens_lit_raw %>%
+  mutate(genus_species = as.factor(species)) %>%
+  mutate(t50 = as.numeric(replace(t50, t50=="<300", 300))) %>%
+  mutate(t450nm = t450nm*100) %>%
+  mutate(source = "literature") %>%
+  mutate(stage = "unknown") %>%
+  mutate(diam_mm = "unknown") %>%
+  select(order, family, genus_species, stage, dataset, source, diam_mm, t450nm, t50, pUVA)
+```
+
+## Merged data
+
+Data from our study and previous studies were merged for comparative analyses. Combined, they cover two orders, 32 families, 76 genera, and 116 species. There was overlap in data (our study and in published literature) for 8 species.  
+
+```{r merge-data}
+
+#merge new and published datasets 
+lenses <-full_join(lens_data, lens_lit) 
+
+#compile number of frogs sampled by species
+samps <- lenses %>%
+  arrange(genus_species) %>%
+  arrange(family) %>%
+  arrange(order) %>%
+  select(order, family, genus_species, source, t50, pUVA)
+
+#create table column names
+names(samps) <- c("Order","Family", "Species", "Data source", "T50%", "%UVA") 
+
+#generate scrolling table in RMarkdown
+kable(samps[ , c("Order","Family", "Species", "Data source", "T50%", "%UVA")], 
+      caption = "Species sampled and transmission summary data") %>%
+  kable_styling(full_width = F) %>% 
+  collapse_rows(columns = c(1,2), valign = "top") %>%
+  scroll_box(height = "600px") 
+```
+
+# Ecological trait data
+
+Ecological data for each species is imported and matched to the species in the lens transmission dataset. In the original trait database used for other projects, adult habitat was categorized as: fossorial, subfossorial, aquatic, semiaquatic, ground-dwelling, scansorial; here, we collapse it into binary states (scansorial or other) to test whether scansoriality is correlated with lens transmission. Likewise, in our original database, activity pattern was categorized as: diurnal, nocturnal, both; here, we make it binary (primarily diurnal or not) to test whether diurnal activity is associated with lens transmission. Finally, we include data for the presence or absence of sexual dichromatism in each species. 
+
+```{r trait-data}
+#import trait data
+traits_raw <- data.frame(read.csv("../Data/raw data/lens_traits.csv", header=TRUE, na.strings=c("", "NA")))
+
+#convert to binary traits and extract relevent columns
+traits <- traits_raw %>%
+  mutate(hab = recode_factor(Adult_habitat, "Scansorial" = "scansorial", "Fossorial" = "other", "Subfossorial" = "other", "Ground-dwelling" = "other", "Aquatic" = "other", "Semiaquatic" = "other")) %>%
+  mutate(Activity_period = na_if(Activity_period, "Unknown")) %>%
+  mutate(act = recode_factor(Activity_period, "Both" = "nondiurnal", "Diurnal" = "diurnal", "Nocturnal" = "nondiurnal")) %>%
+  mutate (dich = recode_factor(Sex_dichromatism, "Absent" = "nondichromatic", "Present" = "dichromatic")) %>%
+  select(genus_species, hab, act)
+
+#merge lens and trait data by species name
+lens_traits <- left_join(lenses, traits, by="genus_species")
+```
+
+# Convert to Frost (2021) phylogeny
+
+Here, we use the AmhpiNom package to add a column showing names according to Amphibian Species of the World (Frosg, 2021). This will allow us to match up species with those in the phylogeny even if different synonyms have been used. 
+
+```{r}
+#update AmphiNom package with most current ASW taxonomy
+##note: this is time consuming but should be redone periodically for most updated results.
+### last update: July 2021
+#getTaxonomy() 
+
+### Dataset names ------
+
+#Screen names in dataset to see how well they match up to ASW and what can be 'updated' seamlessly
+datanames.asw <- aswSync(lens_traits$genus_species)
+synonymReport(datanames.asw)
+
+#pull out all direct matches or updated ASW taxonomy
+data.update <- datanames.asw %>%
+  filter(status == "up_to_date" | status =="updated") %>%
+  mutate(genus_species = query) %>%
+  select(genus_species, ASW_names)
+
+#add column to lens data with updated ASW names
+lens_names <- distinct(left_join(lens_traits, data.update, by = "genus_species"))
+
+#check how many species aren't being matched to ASW names
+missingASW <- lens_names %>%
+  filter(is.na(ASW_names)) %>%
+  select(genus_species, ASW_names)
+
+#add ASW manual entries after checking species
+missingASW$ASW_names[missingASW$genus_species=="Cornufer_guentheri"]<-"Cornufer_guentheri" #ambuiguous (mult. matches)
+missingASW$ASW_names[missingASW$genus_species=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" #ambuiguous (mult. matches)
+missingASW$ASW_names[missingASW$genus_species=="Cynops_pyrrhogaster"]<-"Cynops_pyrrhogaster" #ambiguous (mult. matches)
+
+#merge these updated names with original data update
+data.update2 <- full_join(data.update, missingASW)
+
+#remerge with pupil data
+lens_names2 <- distinct(left_join(lens_traits, data.update2, by = "genus_species"))
+```
+
+Finally, we export this tidied, compiled data set to be used for analyses. 
+
+```{r}
+#export this compiled data file with ASW names
+write.csv(lens_names2, file = "../Data/tidy data/lenses_compiled.csv")
+```
+
+
+# Phylogeny
+
+We used the amphibian phylogenetic hypothesis by Jetz and Pyron (2019). It's important to note that this tree includes branches supported by molecular data as well as branches that are grafted on based exclusively on taxonomy, and has many polytomies. Because we need a dichotomous tree for comparative analyses, we randomly resolved polytomies using the multi2di function in ape v.5.4.1. 
+
+## Import tree
+
+```{r pyrontree, results = "hide"}
+
+#Import phylogeny from Jetz and Pyron 2019
+tree_orig <- read.tree(file = "../Data/raw data/amph_shl_new_Consensus_7238.tre") #reads tree
+
+#Test whether tree is rooted
+is.rooted(tree_orig)
+
+#Test whether tree is binary
+is.binary(tree_orig)
+
+#Test whether tree is ultrametric
+is.ultrametric(tree_orig)
+
+#examine tree
+plot.phylo(tree_orig, type = "fan", show.tip.label = FALSE)
+```
+
+## Convert tree tip labes to ASW taxonomy
+
+We matched up the species names in the tree to the species names in our dataset by converting both species list to Frost's taxonomy from Amphibian Species of the World (ASW). Anuran taxonomy changes frequently and there are likely some species  that are named differently in the tree vs. in our datasets. To match them up, we use the AmphiNom package by Liedtke (2019) to convert known synonyms to the taxonomy represented in Amphibian Speicies of the World (ASW). This addressed the bulk of the taxa; the remaining we examined and matched manually. 
+
+```{r name-match, results="hide"}
+
+#Pull out tip labels from tree
+tips <- as.vector(tree_orig$tip.label)
+
+#Make a dataframe with tip vector as a column called "phylo_names"
+phylo_names <- as.data.frame(tips, optional = TRUE, stringsAsFactors = FALSE)
+colnames(phylo_names) <- "species_phylo"
+
+#Screen names in phylogeny tips to see how well they match up to ASW and what can be 'updated' seamlessly
+phylotips.asw <- aswSync(phylo_names$species_phylo)
+
+#view summary
+synonymReport(phylotips.asw)
+
+#pull out all direct matches for updated ASW taxonomy
+tip.update <- phylotips.asw %>%
+  filter(status == "up_to_date" | status =="updated") %>%
+  mutate(species_phylo = query) %>%
+  select(species_phylo, ASW_names) 
+
+#add column to phylotips with updated ASW names
+phylo_names2 <- left_join(phylo_names, tip.update, by = "species_phylo")
+
+### Find species missing from tips and dataset ----
+
+#check how many species in ASW revised dataset are not matching new tree ASW labels
+length(which(!lens_names2$ASW_names %in% phylo_names2$ASW_names))
+
+#list species that need manually checked in tree
+missing <- setdiff(lens_names2$ASW_names, phylo_names2$ASW_names)
+missing <- as.data.frame(missing, optional = TRUE, stringsAsFactors = FALSE)
+colnames(missing) <- "ASW_names" #rename col with ASW names
+missing$species_phylo <- NA #create empty col for phylo matches
+
+#add ASW phylo matches manually 
+
+#Add Lissotriton vulgaris (was ambiguous match)
+missing$species_phylo[missing$ASW_names=="Lissotriton_vulgaris"]<-"Lissotriton_vulgaris" 
+
+#Add Cynops pyrrhogaster (was ambiguous match)
+missing$species_phylo[missing$ASW_names=="Cynops_pyrrhogaster"]<-"Cynops_pyrrhogaster" 
+
+#Add Lithobates pipiens
+missing$species_phylo[missing$ASW_names=="Lithobates_pipiens"]<-"Rana_pipiens" 
+
+#Boana diabolica is missing from phylogeny and will have to be grafted in as a sister taxon to Boana geographica (according to Caminer and Ron 2020)) later
+# Adding it here as placeholder now. 
+missing$species_phylo[missing$ASW_names=="Boana_diabolica"]<-"Boana_diabolica" #ambiguous (mult. matches)
+
+
+#add manual matches to phylogeny ASW matches
+phylo_names3 <- phylo_names2 %>%
+  drop_na(ASW_names)
+  
+phylo_names4 <- full_join(phylo_names3, missing)
+
+#check how many species in ASW revised dataset are not matching new tree ASW labels
+missing2 <- setdiff(lens_names2$ASW_names, phylo_names4$ASW_names)
+
+#check for duplicate taxa
+n_occur <- data.frame(table(lens_names2$genus_species))
+
+```
+
+## Match tree tip labels to data and prune
+
+Here, we match sampled species to the tip labels in the tree using the ASW names and then prune the tree to match the species sampled.
+
+```{r}
+
+### Match data species names with phylogeny tip labels ###
+
+#remove duplicate ASW matches from phylogeny labels
+phylo_names5 <- phylo_names4 %>%
+  distinct(ASW_names, .keep_all = TRUE) #remove any duplicates
+
+#use a left join in dplyr to match phylo tips to dataset species names
+phylo_data <- lens_names2 %>%
+  left_join(phylo_names5, by = "ASW_names") %>%
+  drop_na(species_phylo) %>% #drop species not in phylogeny
+  mutate_if(is.factor, as.character) %>%
+  distinct(ASW_names, .keep_all = TRUE) #remove any duplicates
+
+### Pruning a phylogeny to match the species in your dataset ###
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(tree_orig$tip.label, phylo_data$species_phylo)
+
+#drop unwanted tips from phylogeny
+tree.pruned <- drop.tip(phy = tree_orig, tip = drops) 
+
+#see which tips you've kept in your phylogeny
+tree.pruned$tip.label
+
+#note that the 1 missing species is Boana diabolica, which is not in the phylogeny and will be grafted on later
+
+#rename tips to ASW names
+tree.pruned$tip.label <- phylo_data[["ASW_names"]][match(tree.pruned$tip.label, phylo_data[["species_phylo"]])]
+
+#force species_phylo to dataframe
+phylo_data <- as.data.frame(phylo_data)
+rownames(phylo_data) <- phylo_data$ASW_names
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.pruned, phylo_data)
+
+#check and reorder tree
+
+#tests whether tree is rooted (want it to return "TRUE") 
+is.rooted(tree.pruned) 
+
+#Test whether tree is ultrametric
+is.ultrametric(tree.pruned)
+
+#force pruned tree to be ultrametric (it is originally, this is rounding error)
+tree.ultra <- force.ultrametric(tree.pruned)
+
+#Boana diabolica is missing from phylogeny and will be grafted in as a polytomy based on the genus
+tree_add <- add.species.to.genus(tree.ultra, "Boana_diabolica", where = "root")
+
+#test whether tree is dichotomous (no polytomies)
+is.binary(tree_add) 
+
+#make tree dichotomous by randomly resolving polytomies
+tree_add2 <- multi2di(tree_add)
+
+#ladderize 
+lens.tree <- ladderize(tree_add2) #ladderizes tree
+```
+
+The multi2di function has recently been erroneously converting an ultrametric tree to a non-ultrametric tree. Therefore, this piece of code is not working properly (but we keep it in the RMarkdown for transparency). Instead, we next import and plot the final pruned tree that we previously exported from this code when it was functioning properly. 
+
+```{r plot-phylo, fig.height = 20, fig.width = 8, fig.cap="Phylogeny from Jetz and Pyron (2019), pruned to the taxa in our study and re-named so that species match taxonomy on ASW."}
+
+#import final pruned tree
+tree_final <- read.tree(file = "../Data/tidy data/pruned_tree.txt") #reads tree
+
+#double-check final tree
+is.rooted(tree_final)
+is.ultrametric(tree_final)
+is.binary(tree_final)
+
+#plot phylogeny
+plot.phylo(tree_final, #phylogeny to plot
+           type = "phylogram", #how to visualize phylogeny
+           show.tip.label = TRUE, #whether to show tip labels/species names
+           cex = 1.0, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE,
+           edge.width = 1.5, #thickness of phylogeny branches
+           label.offset = 3) #how far away from tips to put labels
+```
