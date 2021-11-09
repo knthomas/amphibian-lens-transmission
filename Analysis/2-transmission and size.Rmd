@@ -19,6 +19,8 @@ Here, we examine how lens size may affect lens transmission.
 #libraries
 library(knitr)
 library(kableExtra)
+library(plotly)
+library(cowplot)
 library(AmphiNom)
 library(geiger)
 library(ape)
@@ -356,36 +358,148 @@ ggplotly(plot_uva.unpig)
 
 The lack of relationship between transmission and lens size across species is good evidence that differences we observe across species are due to differences in the spectral properties of the lens, even among species with highly transparent lenses. It also justifies why we do not account for lens diameter in our models of lens transmission vs. ecology (which is impossible, as the published data we include did not have measurements for lens diameter).
 
+
+# Ecology vs. lens size
+
+Here we look at whether lens size varies across ecological traits in our dataset. 
+
+```{r}
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
+
+#boxplot of lens size across scansorial/not
+plot_scans <- ggplot(lens_adults.new, 
+                aes(x = hab, y = approx_size, fill = hab)) +
+  geom_violin(trim=FALSE, alpha = 0.6)+
+  scale_fill_manual(values = col_hab, name = " ") +
+  scale_x_discrete(breaks = c("scansorial","other"),
+                   limits = c("scansorial","other"),
+                   labels = c("scansorial","non-scansorial")) +
+  labs(title=NULL,x=" ", y = "Lens diameter (mm)")+
+  geom_boxplot(width=0.15, fill="white", outlier.alpha = 0)+
+  geom_jitter(shape = 19, size = 1, alpha = 0.7, position = position_jitter(0.1)) + 
+  theme_classic() +
+  theme(legend.position = "none")
+
+#boxplot of lens size across diurnal/not
+plot_diur <- ggplot(lens_adults.new, 
+                aes(x = act, y = approx_size, fill = act)) +
+  geom_violin(trim=FALSE, alpha = 0.6)+
+  scale_fill_manual(values = col_act, name = " ") +
+  scale_x_discrete(breaks = c("diurnal","nondiurnal"),
+                   limits = c("diurnal","nondiurnal"),
+                   labels = c("diurnal","non-diurnal")) +
+  labs(title=NULL,x=" ", y = "Lens diameter (mm)")+
+  geom_boxplot(width=0.15, fill="white", outlier.alpha = 0)+
+  geom_jitter(shape = 19, size = 1, alpha = 0.7, position = position_jitter(0.1)) + 
+  theme_classic() +
+  theme(legend.position = "none")
+
+#make figure
+plot_grid(plot_scans, plot_diur + ylab(""),
+          align = 'vh', 
+          labels = c("A", "B"),
+          hjust = -0.5, 
+          vjust = 1.8, 
+          nrow = 1)
+
+
+#export fig
+pdf("../Figures/FigS7.pdf", width = 6, height = 4)
+plot_grid(plot_scans, plot_diur + ylab(""),
+          align = 'vh', 
+          labels = c("A", "B"),
+          hjust = -0.5, 
+          vjust = 1.8, 
+          nrow = 1)
+dev.off()
+
+  
+```
+We can also test whether species with different ecological traits differ in lens size.
+
+```{r}
+#PGLS model for lens size vs. scansoriality -----
+
+#model
+pgls_hab <- pgls(approx_size ~ hab, 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_hab, main = "PGLS model for size vs scansoriality")
+par(mfrow = c(1, 1))
+
+#print model output 
+summary(pgls_hab)
+
+#PGLS model for lens size vs. diurnality -----
+
+#model
+pgls_act <- pgls(approx_size ~ act, 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_act, main = "PGLS model for size vs diurnality")
+par(mfrow = c(1, 1))
+
+#print model output 
+summary(pgls_act)
+
+```
+These models indicate that lens size does not differ significantly among scansorial vs. nonscansorial species, but that nondiurnal species have significantly larger lenses than diurnal species in this dataset. 
+
+# Supplemental Figure
+
 ```{r}
 #make panels to figures
 fig.a <- plot_t50size +
   xlab("") +
-  ylab("t50 (nm)")
+  ylab("t50 (nm)") + 
+  theme_classic()
 
 fig.b <- plot_uvasize +
-  xlab("")
+  xlab("")+ 
+  theme_classic()
 
 fig.c <- plot_t50unpig +
-  ylab("t50 (nm)")
+  ylab("t50 (nm)")+ 
+  theme_classic()
 
-fig.d <- plot_uva.unpig
+fig.d <- plot_uva.unpig+ 
+  theme_classic()
+
+fig.e <- plot_scans
+
+fig.f <- plot_diur
 
 # arrange panels in figure
-plots <- plot_grid(fig.a, fig.b, fig.c, fig.d,
+plots <- plot_grid(fig.a, fig.b, fig.c, fig.d, fig.e, fig.f,
            align = 'vh', 
-           labels = c("A", "B", "C", "D"), #panel labels for figure
+           labels = c("A", "B", "C", "D", "E", "F"), #panel labels for figure
            hjust = -.5,
            vjust = 1,
-           nrow = 2) #number of rows in grids
+           nrow = 3) #number of rows in grids
 
 #view figure
 plot_grid(plots)
 
 #export figure
-pdf("../Figures/lens_size.pdf", width = 6, height = 5)
+pdf("../Figures/Fig-S6.pdf", width = 6, height = 7.5)
 plot_grid(plots)
 dev.off()
 
 ```
-
-
