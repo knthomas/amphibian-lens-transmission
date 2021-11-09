@@ -1,0 +1,391 @@
+---
+title: "Amphibian lens transmission: 2-transmission and size"
+author: "Katie Thomas"
+date: "08 Nov 2021"
+output:
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    code_fold: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+Here, we examine how lens size may affect lens transmission. 
+
+```{r setup, include=FALSE}
+
+#libraries
+library(knitr)
+library(kableExtra)
+library(AmphiNom)
+library(geiger)
+library(ape)
+library(phytools)
+library(caper)
+library(plyr)
+library(tidyverse)
+
+#set rmarkdown options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.height = 5, fig.width = 8, attr.output='style="max-height: 350px;"') 
+
+```
+
+
+# Data
+
+First, we import the tidied data compiled from all studies that includes ASW names and ecological details. 
+
+```{r}
+
+#import species data for lens transmission
+lens_data <- data.frame(read.csv("../Data/tidy data/lenses_compiled.csv", header=TRUE, na.strings=c("", "NA"))) 
+
+```
+
+Then we subset data to adults measured in this study only for analyses. 
+
+```{r}
+
+#adults-this study
+lens_adults.new <- lens_data %>% 
+  filter(stage %in% c("adult", "unknown")) %>%
+  filter(source == "this_study")
+```
+
+Finally, we import the pruned tree. 
+
+```{r}
+#Import pruned tree
+lens.tree <- read.tree(file = "../Data/tidy data/pruned_tree.txt")
+```
+
+# Lens transmission vs. lens size
+
+Here, we run PGLS regressions of t50 vs. log10 lens diameter and of %UVA vs. log10 lens diameter to test for relationships between transmission and path length. 
+
+## Dataset: all adult species means
+
+Here, we included only adult data from our study (we excluded published adult data because lens sizes from specimens used for transmission measurements were not reported). We include all species, whether or not lens transmission spectra appear to indicate the presence of a pigment. This was to test the null hypothesis that variation in transmission is due to different spectral properties in lenses across species. If we find a significant, highly correlated relationship between transmission and pathlength, it could indicate that all lenses have the same spectral properties, and differences in transmission may be driven only by differences in path length across species with different eye sizes. 
+
+### t50 vs. path length
+
+```{r, results = "hide"}
+
+#PGLS models for t50 or %UVA vs. lens diameter among species
+
+#### prep data ####
+
+#Make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, as.character(lens_adults.new$ASW_names))
+
+#Drop unwanted tips from phylogeny
+adults.new.tree <- drop.tip(phy = lens.tree, tip = drops) 
+
+#Make row names of the species the phylogeny tip labels
+rownames(lens_adults.new) <- lens_adults.new$ASW_names
+
+#check that names match in dataframe and tree
+name.check(phy = adults.new.tree, data = lens_adults.new, data.names = lens_adults.new$ASW_names)
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+lenssize.comp <- comparative.data(phy = adults.new.tree, data = lens_adults.new, 
+                              names.col = ASW_names, vcv = TRUE, 
+                              na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+lenssize.comp$dropped$tips #phylogeny
+lenssize.comp$dropped$unmatched.rows #dataset
+
+#### PGLS model for t50 vs. lens size ####
+
+#model
+pgls_size.t50 <- pgls(t50 ~ log10(approx_size), 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+```
+
+After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda. 
+
+```{r}
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_size.t50, main = "PGLS model for t50 vs. log lens size")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_size.t50)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.size.t50 <- pgls.profile(pgls_size.t50, "lambda")
+plot(lambda.size.t50)
+
+```
+
+Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven solely by differences in path length. 
+
+```{r, fig.height = 4, fig.width = 6}
+
+#plot t50 vs. log lens size with fit
+plot_t50size <- ggplot(lens_adults.new, aes(x = approx_size, y = t50, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("t50") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_size.t50)[[2]], intercept = coef(pgls_size.t50)[[1]], linetype = "dashed")
+
+#interactive plot
+ggplotly(plot_t50size)
+
+```
+
+## %UVA vs. path length
+
+```{r, results = "hide"}
+
+#### PGLS model for %UVA vs. lens size ####
+
+#model
+pgls_size.puva <- pgls(pUVA ~ log10(approx_size), 
+                  data = lenssize.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+```
+
+After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda.
+
+```{r}
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_size.puva, main = "PGLS model for pUVA vs. log lens size")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_size.puva)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.size.uva <- pgls.profile(pgls_size.puva, "lambda")
+plot(lambda.size.uva)
+
+```
+
+Finally, we can plot our data and the model fit. Note that the linear relationship between %UVA and log lens diameter was not significant, indicating that observed variation in transmission among species is not driven solely by differences in path length.
+
+```{r, fig.height = 4, fig.width = 6}
+#plot %UVA vs. log lens size with fit
+plot_uvasize <- ggplot(lens_adults.new, aes(x = approx_size, y = pUVA, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("%UVA") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_size.puva)[[2]], intercept = coef(pgls_size.puva)[[1]], linetype = "dashed")
+
+#interactive plot
+ggplotly(plot_uvasize)
+
+```
+
+## Dataset: adult species means with unpigmented lenses 
+
+We only expect path length to show a strong relationship with UV transmission in unpigmented lenses, so we may want to look separately at just unpigmented ones. In our results, we considered a t50 ≤ 350nm to be an unpigmented lens (n = 27).
+
+Our lenses ranged in t50 from 317 to 423.  We can look at that plotted onto a histogram of all our t50 values to see where that falls in our data. 
+
+```{r}
+
+#Histogram of T50 values in our dataset
+  plot_t50hist <-ggplot(lens_adults.new, aes(x = t50)) + 
+  geom_histogram(color = "black", fill = "gray", binwidth = 5) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  xlab("t50") +
+  geom_vline(aes(xintercept=350), col = "red", linetype = "dashed")
+  
+
+plot_t50hist
+```
+
+### t50 vs. path length (unpigmented)
+
+```{r, results = "hide"}
+
+#add pigmentation category to dataframe
+lens_adults.new <- lens_adults.new %>%
+  mutate(pigment = ifelse(t50 <= 350, "unpigmented", "pigmented"))
+
+#subset unpigmented species
+lens_unpig <- lens_adults.new %>%
+  filter(pigment=="unpigmented")
+
+#PGLS models for t50 or %UVA vs. lens diameter among species
+
+#### prep data ####
+
+#Make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, as.character(lens_unpig$ASW_names))
+
+#Drop unwanted tips from phylogeny
+unpig.tree <- drop.tip(phy = lens.tree, tip = drops) 
+
+#Make row names of the species the phylogeny tip labels
+rownames(lens_unpig) <- lens_unpig$ASW_names
+
+#check that names match in dataframe and tree
+name.check(phy = unpig.tree, data = lens_unpig, data.names = lens_unpig$ASW_names)
+
+#use caper function to combine phylogeny and data into one object (this function also matches species names in tree and dataset)
+unpig.comp <- comparative.data(phy = unpig.tree, data = lens_unpig, 
+                              names.col = ASW_names, vcv = TRUE, 
+                              na.omit = FALSE, warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+unpig.comp$dropped$tips #phylogeny
+unpig.comp$dropped$unmatched.rows #dataset
+
+#### PGLS model for t50 vs. lens size ####
+
+#model
+pgls_unpig.t50 <- pgls(t50 ~ log10(approx_size), 
+                  data = unpig.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+
+```
+
+After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda. 
+
+```{r}
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_unpig.t50, main = "PGLS model for t50 vs. log lens size in unpigmented lenses")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_unpig.t50)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.unpig.t50 <- pgls.profile(pgls_unpig.t50, "lambda")
+plot(lambda.unpig.t50)
+
+```
+
+Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that lens transmission among species with unpigmented lenses is not correlated with path length.
+
+```{r, fig.height = 4, fig.width = 6}
+#plot t50 vs. log lens size with fit
+plot_t50unpig <- ggplot(lens_unpig, aes(x = approx_size, y = t50, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("t50") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_unpig.t50)[[2]], intercept = coef(pgls_unpig.t50)[[1]], linetype = "dashed")
+
+#interactive plot
+ggplotly(plot_t50unpig)
+```
+
+### %UVA vs. path length (unpigmented)
+
+```{r}
+#### PGLS model for %UVA vs. lens size ####
+
+#model
+pgls_unpig.puva <- pgls(pUVA ~ log10(approx_size), 
+                  data = unpig.comp, 
+                  lambda = "ML", #uses Maximum Liklihood estimate of lambda
+                  param.CI = 0.95)
+```
+
+After fitting the model, we can examine the diagnostic plots to check model assumptions, then look at the parameter estimates and the likelihood profile of lambda. 
+
+```{r}
+###check model assumptions ###
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_unpig.puva, main = "PGLS model for pUVA vs. log lens size in unpigmented lenses")
+par(mfrow = c(1, 1))
+
+### model outputs ###
+
+#print model output 
+summary(pgls_unpig.puva)
+
+#Likelihood plot for Pagel's lambda from the PGLS model of eye diameter vs. the cuberoot of mass. Solid red line indicates estimate for lambda and broken red lines indcaite the 95% confidence interval
+lambda.unpig.uva <- pgls.profile(pgls_unpig.puva, "lambda")
+plot(lambda.unpig.uva)
+```
+Finally, we can plot our data and the model fit. Note that the linear relationship between t50 and log lens diameter was not significant, indicating that lens transmission among species with unpigmented lenses is not correlated with path length.
+
+```{r, fig.height = 4, fig.width = 6}
+#plot %UVA vs. log lens size with fit
+plot_uva.unpig <- ggplot(lens_unpig, aes(x = approx_size, y = pUVA, text = genus_species)) + 
+  geom_point(size = 2, alpha = 0.8) + 
+  scale_x_log10("Lens diameter (mm)") + 
+  ylab("%UVA") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  geom_abline(slope = coef(pgls_unpig.puva)[[2]], intercept = coef(pgls_unpig.puva)[[1]], linetype = "dashed")
+
+#interactive plot
+ggplotly(plot_uva.unpig)
+
+```
+
+The lack of relationship between transmission and lens size across species is good evidence that differences we observe across species are due to differences in the spectral properties of the lens, even among species with highly transparent lenses. It also justifies why we do not account for lens diameter in our models of lens transmission vs. ecology (which is impossible, as the published data we include did not have measurements for lens diameter).
+
+```{r}
+#make panels to figures
+fig.a <- plot_t50size +
+  xlab("") +
+  ylab("t50 (nm)")
+
+fig.b <- plot_uvasize +
+  xlab("")
+
+fig.c <- plot_t50unpig +
+  ylab("t50 (nm)")
+
+fig.d <- plot_uva.unpig
+
+# arrange panels in figure
+plots <- plot_grid(fig.a, fig.b, fig.c, fig.d,
+           align = 'vh', 
+           labels = c("A", "B", "C", "D"), #panel labels for figure
+           hjust = -.5,
+           vjust = 1,
+           nrow = 2) #number of rows in grids
+
+#view figure
+plot_grid(plots)
+
+#export figure
+pdf("../Figures/lens_size.pdf", width = 6, height = 5)
+plot_grid(plots)
+dev.off()
+
+```
+
+
