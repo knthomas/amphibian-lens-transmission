@@ -1,3 +1,4 @@
+---
 title: "Amphibian lens transmission: 1 - data tidying"
 author: "Katie Thomas"
 date: "08 Nov 2021"
@@ -341,6 +342,8 @@ tree_final <- read.tree(file = "../Data/tidy data/pruned_tree.txt") #reads tree
 is.rooted(tree_final)
 is.ultrametric(tree_final)
 is.binary(tree_final)
+name.check(tree_final, phylo_data)
+
 
 #plot phylogeny
 plot.phylo(tree_final, #phylogeny to plot
