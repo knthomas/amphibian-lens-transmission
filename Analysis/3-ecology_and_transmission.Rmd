@@ -1,0 +1,712 @@
+---
+title: "Amphibian lens transmission: 3-ecology and transmission"
+author: "Katie Thomas"
+date: "10 Nov 2021"
+output:
+  html_document:
+    theme: cerulean
+    toc: TRUE
+    toc_float: TRUE
+    code_fold: hide
+editor_options: 
+  chunk_output_type: inline
+---
+
+Here, we examine how ecology may shape species differences in short-wavelength lens transmission. 
+
+```{r setup, include=FALSE}
+
+#libraries
+library(knitr)
+library(kableExtra)
+library(plotly)
+library(cowplot)
+library(AmphiNom)
+library(ggtree)
+library(geiger)
+library(ape)
+library(phytools)
+library(caper)
+library(plyr)
+library(tidyverse)
+
+#set rmarkdown options
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, fig.height = 5, fig.width = 8, attr.output='style="max-height: 350px;"') 
+
+```
+
+
+# Data
+
+First, we import the tidied data compiled from all studies that includes ASW names and ecological details. 
+
+```{r}
+
+#import species data for lens transmission
+lens_data <- data.frame(read.csv("../Data/tidy data/lenses_compiled.csv", header=TRUE, na.strings=c("", "NA"))) 
+
+```
+
+Then we subset data to adults measured in this study and previously published studies. We also create subsets for data from this study vs. data from previous studies. 
+
+```{r}
+
+#adults
+lens_adults <- lens_data %>% 
+  filter(stage %in% c("adult", "unknown"))
+
+#adults-this study
+lens_adults.new <- lens_adults %>% 
+  filter(source == "this_study")
+
+#adults-literature
+lens_adults.pub <- lens_adults %>% 
+  filter(source == "literature")
+
+```
+
+Finally, we import the pruned tree. 
+
+```{r}
+#Import pruned tree
+lens.tree <- read.tree(file = "../Data/tidy data/pruned_tree.txt")
+```
+
+
+# Visualize data
+
+Here, we examine the distribution of lens transmission summary data across the amphibian phylogeny and ecological traits.
+
+## Plot adult sampling onto phylogeny
+
+```{r, results = "hide"}
+
+# prep data -----
+
+#create dataframe of adults with this paper and lit data in two separate columns
+
+#our data
+new_cols <- lens_adults.new %>%
+  mutate(t450nm_new = t450nm) %>%
+  mutate(t50_new = t50) %>%
+  mutate(pUVA_new = pUVA) %>%
+  select(ASW_names, t450nm_new, t50_new, pUVA_new, hab, act)
+
+#published data
+lit_cols <- lens_adults.pub %>%
+  mutate(t450nm_lit = t450nm) %>%
+  mutate(t50_lit = t50) %>%
+  mutate(pUVA_lit = pUVA) %>%
+  select(ASW_names, t450nm_lit, t50_lit, pUVA_lit, hab, act)
+
+#merge
+adults_sep <- full_join(new_cols, lit_cols, by = c("ASW_names", "hab", "act"))
+
+#prune tree to adult data -----
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(lens.tree$tip.label, adults_sep$ASW_names)
+
+#drop unwanted tips from phylogeny
+tree.adults <- drop.tip(phy = lens.tree, tip = drops) 
+
+#set rownames of adult dataset
+rownames(adults_sep) <- as.character(adults_sep$ASW_names)
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults, adults_sep)
+
+#resort dataset to the order of tree tip labels
+adults_sep <- adults_sep[tree.adults$tip.label, ] 
+
+```
+
+```{r, fig.height=12, fig.width=5, fig.cap="Phylogeny showing adult lens transmission and ecological traits. Non-italicized values show our t50 (unbolded) and %UVA (bolded) measurements for adult species means, while italicized values show species means calculated from published literature."} 
+
+#plot phylogeny with sampling tip labels ----
+
+
+#color vecctors
+col_hab <- c("other" = "grey95",
+             "scansorial" = "#009E73")
+
+col_act <- c("diurnal" = "#FFB122",
+             "nondiurnal" = "grey95")
+
+#phylogeny
+plot.phylo(tree.adults, 
+           type = "phylogram", 
+           show.tip.label = TRUE, 
+           cex = 0.6, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE, 
+           edge.width = 2,
+           x.lim = 650,
+           label.offset = 2) 
+
+#add tip labels for our data (t50)
+tiplabels(adults_sep$t50_new,
+          cex = 0.6,
+          frame = "none",
+          bg = "white",
+          offset = 195) #size of labels
+
+#add tip labels for published data (t50) 
+tiplabels(adults_sep$t50_lit,
+          cex = 0.6,
+          font = 3,
+          frame = "none",
+          bg = "white",
+          offset = 215) #size of labels
+
+#add tip labels for our data (%UVA)
+tiplabels(round(adults_sep$pUVA_new, digits = 0),
+          cex = 0.6,
+          font = 2,
+          frame = "none",
+          bg = "white",
+          offset = 240) #size of labels
+
+#add tip labels for published data (%UVA)
+tiplabels(round(adults_sep$pUVA_lit,digits = 0),
+          cex = 0.6,
+          font = 4, 
+          frame = "none",
+          bg = "white",
+          offset = 255) #size of labels
+
+#add tip labels for scansorial/not
+tiplabels(col = col_hab[as.factor(adults_sep$hab)], #sets color habitat
+          pch = 17,
+          cex = 0.8,
+          offset = 150) 
+
+#add tip labels for diurnal/not
+tiplabels(col = col_act[as.factor(adults_sep$act)], #sets color habitat
+          pch = 19,
+          cex = 0.8,
+          offset = 160) 
+
+
+#add legend for ecology traits
+legend(x = 20, y = 25, legend = c("Scansorial", "Diurnal"), 
+       col = c("#009E73", "#FFB122"),
+       pch = c(17,19),
+       cex = 0.6, 
+       box.lty = 0, 
+       title = "Ecology", 
+       title.adj = 0)
+
+```
+
+```{r, results = "hide"}
+#export pdf
+
+#pdf
+pdf("../Figures/phylogeny_summary.pdf", width = 7, height = 12)
+
+#phylogeny
+plot.phylo(tree.adults, 
+           type = "phylogram", 
+           show.tip.label = TRUE, 
+           cex = 0.6, #text size
+           no.margin = TRUE, 
+           use.edge.length = TRUE, 
+           edge.width = 2,
+           x.lim = 650,
+           label.offset = 2) 
+
+#add tip labels for our data (t50)
+tiplabels(adults_sep$t50_new,
+          cex = 0.6,
+          frame = "none",
+          bg = "white",
+          offset = 195) #size of labels
+
+#add tip labels for published data (t50) 
+tiplabels(adults_sep$t50_lit,
+          cex = 0.6,
+          font = 3,
+          frame = "none",
+          bg = "white",
+          offset = 215) #size of labels
+
+#add tip labels for our data (%UVA)
+tiplabels(round(adults_sep$pUVA_new, digits = 0),
+          cex = 0.6,
+          font = 2,
+          frame = "none",
+          bg = "white",
+          offset = 240) #size of labels
+
+#add tip labels for published data (%UVA)
+tiplabels(round(adults_sep$pUVA_lit,digits = 0),
+          cex = 0.6,
+          font = 4, 
+          frame = "none",
+          bg = "white",
+          offset = 255) #size of labels
+
+#add tip labels for scansorial/not
+tiplabels(col = col_hab[as.factor(adults_sep$hab)], #sets color habitat
+          pch = 17,
+          cex = 0.8,
+          offset = 150) 
+
+#add tip labels for diurnal/not
+tiplabels(col = col_act[as.factor(adults_sep$act)], #sets color habitat
+          pch = 19,
+          cex = 0.8,
+          offset = 160) 
+
+#add legend for ecology traits
+legend(x = 20, y = 25, legend = c("Scansorial", "Diurnal"), 
+       col = c("#009E73", "#FFB122"),
+       pch = c(17,19),
+       cex = 0.6, 
+       box.lty = 0, 
+       title = "Ecology", 
+       title.adj = 0)
+
+dev.off()
+
+```
+
+
+
+## Plots of t50 and %UVA values across ecological states
+
+Here we plot adult lens transmission metrics (t50 and %UVA) across ecological categories to visualize differences (without accounting for phylogeny)
+
+```{r cols, results = "hide"}
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
+
+#create shape vector for source of data
+sh_source <- c("literature" = 1, 
+               "this_study" = 19)
+```
+
+
+```{r boxplots-eco}
+
+# Scansoriality ------
+
+# boxplot of T50 across habs
+boxplot_habs.t50 <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = t50)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+ geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scans.")) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background +
+  scale_x_discrete(labels=c("scansorial" = "scansorial",
+                            "other" = "non-scans.")) +
+  scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
+  xlab("") +
+  ylab("t50 (nm)")
+
+# boxplot of %UVA across habs
+boxplot_habs.uva <- ggplot(data = lens_adults, 
+                       aes(x = hab, y = pUVA)) + 
+  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  
+ geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scans.")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  xlab("Scansoriality") +
+  scale_x_discrete(labels=c("scansorial" = "scansorial",
+                            "other" = "non-scans.")) +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+# Diurnality ------
+
+# boxplot of T50 across acts
+boxplot_act.t50 <- lens_adults %>%
+  mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
+  ggplot(aes(x = act, y = t50)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+  #controls what stats shown
+ geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  scale_x_discrete(labels=c("diurnal" = "diurnal",
+                            "nondiurnal" = "non-diurnal")) +
+  scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
+  xlab("Diurnality") +
+  ylab("t50 (nm)") +
+  labs(fill = "Data source")
+
+# boxplot of %UVA across habs
+boxplot_act.uva <- lens_adults %>%
+  mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
+  ggplot(aes(x = act, y = pUVA)) + 
+   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
+ geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
+  scale_color_manual(values = col_act,
+                     name = "Activity",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal")) +
+  scale_shape_manual(values = sh_source,
+                     name = "Data",
+                     breaks = c("this_study", "literature"),
+                     labels = c("this study", "literature"),
+                     guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
+  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  scale_x_discrete(labels=c("diurnal" = "diurnal",
+                            "nondiurnal" = "non-diurnal")) +
+  xlab("Diurnality") +
+  ylab("UVA (%)") +
+  labs(fill = "Data source")
+
+#print plots
+plot_grid(boxplot_act.t50, boxplot_act.uva,  #list of plots to arrange in grid
+           align = 'vh', #align horizontally and vertically
+           ncol = 2,
+           rel_widths = c(1, 1)) #number of columns in grids
+
+```
+
+```{r boxplots-eco-export, results = "hide"}
+
+#Boxplot figure
+
+fig.a <- boxplot_habs.t50 + 
+  xlab("")+ 
+  ylab("t50 (nm)") +
+  scale_x_discrete(labels=c("scansorial" = "",
+                            "other" = "")) +
+  theme(legend.position = "none")
+
+fig.b <- boxplot_act.t50 + 
+  xlab("")+ 
+  ylab("") +
+  scale_x_discrete(labels=c("diurnal" = "",
+                            "nondiurnal" = "")) +
+  theme(legend.position = "none")
+
+fig.c <- boxplot_habs.uva + 
+  xlab("")+ 
+  ylab("UVA (%)") +
+  theme(legend.position = "none")
+
+fig.d <- boxplot_act.uva + 
+  xlab("")+ 
+  ylab("") +
+  theme(legend.position = "none")
+
+
+# boxplot of T50 across habs
+pdf("../Figures/boxplots.pdf", width = 5, height = 6)
+plot_grid(fig.a, fig.b, fig.c, fig.d,
+          align = 'vh', 
+          labels = c("A", "B", "C", "D"),
+          hjust = -0.5, 
+          vjust = 1.8, 
+          nrow = 2)
+dev.off()
+
+```
+
+## Plots of t50 and %UVA values onto phylogeny
+
+Here and in subsequent analyses, we must have one transmission value assigned to each species. We include data from both our study and from previously published literature. However, for the 8 species with data from both sources, we use our data in these visualizations and in analyses.
+
+```{r subset-adultphy, results = "hide"}
+
+#For species with more than one data point (measured by us and in lit), choose our data
+adults_merged <- adults_sep %>%
+  mutate(t50_merge = ifelse(is.na(adults_sep$t50_new), t50_lit, t50_new)) %>%
+  mutate(pUVA_merge = ifelse(is.na(adults_sep$pUVA_new), pUVA_lit, pUVA_new))
+```
+
+```{r prep-ggtree, results = "hide"}
+
+#subset data
+adults_plot <- adults_merged %>%
+  mutate(tip = ASW_names) %>%
+  #put genus and species in separate columns
+  separate(ASW_names, c("genus", "species"), sep = "_", extra = "drop") %>%
+  #add tip labels with regular text
+  mutate(labels = as.factor(paste(genus, species, sep = " "))) %>%
+  select(tip, labels, t50_merge, pUVA_merge, hab, act)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adults_plot) <- adults_plot$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adults_plot)
+
+#resort trait dataset to the order of tree tip labels
+adults_plot <- adults_plot[tree.adults$tip.label, ] 
+
+#labels
+labs <- adults_plot %>% select(tip, labels)
+```
+
+#### plot data
+
+First we visualize the distribution of all our t50 and %UVA data across the phylogeny. 
+
+```{r ggtree-data, fig.width = 10, fig.height=15}
+
+# Make the phylogeny plot
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels), fontface = 3) + 
+   xlim_tree(450) + 
+   coord_cartesian(clip = 'off') 
+
+# Make a second plot next to the phylogeny (dot plot of t50 values)
+p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot, geom=geom_point, aes(x=t50_merge), color = "#BDC3BE",  shape = 19, cex = 2.5)
+
+# Make a third plot next to the first two (bar plot of %UVA)
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y), color = "#BDC3BE", size=3) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+
+#control widths of panels
+ gt = ggplot_gtable(ggplot_build(p3))
+# gtable_show_layout(gt) # will show you the layout - very handy function
+# gt # see plot layout in table format
+# gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
+ gt$widths[7] = 0.5*gt$widths[7] # reduce column 7
+ gt$widths[9] = 0.5*gt$widths[9] 
+
+#print figure
+p3
+```
+
+#### plot data + scansoriality
+
+Then we visualize our data colored by habitat. 
+
+```{r ggtree-scansorial, fig.width = 10, fig.height=15}
+
+# Make the phylogeny plot
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels), fontface = 3) + 
+   xlim_tree(450) + 
+   coord_cartesian(clip = 'off') 
+
+# Make a second plot next to the phylogeny (dot plot of t50 values)
+p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = hab), shape = 19, cex = 2.5) +
+  scale_color_manual(values = col_hab,
+                     name = "Habitat",
+                     breaks = c("scansorial", "other"),
+                     labels = c("scansorial", "non-scansorial"))
+
+# Make a third plot next to the first two (bar plot of %UVA)
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = hab), size=3) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+
+#control widths of panels
+ gt = ggplot_gtable(ggplot_build(p3))
+# gtable_show_layout(gt) # will show you the layout - very handy function
+# gt # see plot layout in table format
+# gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
+ gt$widths[7] = 0.5*gt$widths[7] # reduce column 7
+ gt$widths[9] = 0.5*gt$widths[9] 
+
+#print figure
+p3
+```
+
+```{r results = "hide"}
+#export as pdf
+pdf("../Figures/ggtree-scans.pdf", width = 10, height = 15)
+grid::grid.draw(gt) # plot with grid draw
+dev.off()
+```
+
+#### plot data + diurnality
+
+Then we visualize our data colored by activity pattern. 
+
+```{r ggtree-diurnal, fig.width = 10, fig.height=15}
+
+# Make the phylogeny plot
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels), fontface = 3) + 
+   xlim_tree(450) + 
+   coord_cartesian(clip = 'off') 
+
+# Make a second plot next to the phylogeny (dot plot of t50 values)
+p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot, geom=geom_point, aes(x=t50_merge, color = act), shape = 19, cex = 2.5) +
+  scale_color_manual(values = col_act,
+                     name = "Activity period",
+                     breaks = c("diurnal", "nondiurnal"),
+                     labels = c("diurnal", "non-diurnal"))
+
+
+# Make a third plot next to the first two (bar plot of %UVA)
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = act), size=3) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+
+#control widths of panels
+ gt = ggplot_gtable(ggplot_build(p3))
+# gtable_show_layout(gt) # will show you the layout - very handy function
+# gt # see plot layout in table format
+# gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
+ gt$widths[7] = 0.5*gt$widths[7] # reduce column 7
+ gt$widths[9] = 0.5*gt$widths[9] 
+
+#print figure
+p3
+```
+
+```{r results = "hide"}
+#export as pdf
+pdf("../Figures/ggtree-act.pdf", width = 10, height = 15)
+grid::grid.draw(gt) # plot with grid draw
+dev.off()
+```
+
+
+#### make paper figure
+
+Then we visualize our data colored by ecological states that were significant in our phylogenetic ANOVAs (below). Here, we make a new column in our dataframe indicating the presence of diurnality, scansoriality, both (n = 1), and neither. This will show the distribution of both significant ecological effects, as well as show that there is only one species that is both diurnal and scansorial, indicating that these are separate effects. 
+
+```{r, results = "hide"}
+#make new category with scansorial, diurnal, both, or neither
+lens_adults.new <- lens_adults.new %>%
+  mutate(eco_cat = case_when(hab=="scansorial" & act=="diurnal" ~ "both",
+                             hab == "scansorial" ~ "scansorial",
+                             act == "diurnal" ~ "diurnal", 
+                             hab=="other" & act=="nondiurnal" ~ "neither")) %>%
+  mutate(eco_binary = recode_factor(eco_cat, "scansorial" = "SD", "diurnal" = "SD", "both" = "SD", "neither" = "not"))
+
+#subset data
+adults_plot.combined <- adults_plot %>%
+   mutate(eco_cat = case_when(hab=="scansorial" & act=="diurnal" ~ "both",
+                             hab == "scansorial" ~ "scansorial",
+                             act == "diurnal" ~ "diurnal", 
+                             hab == "other" & act == "nondiurnal" ~ "neither")) %>%
+  select(tip, labels, t50_merge, pUVA_merge, eco_cat)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adults_plot.combined) <- adults_plot.combined$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adults_plot.combined)
+
+#resort trait dataset to the order of tree tip labels
+adults_plot.combined <- adults_plot.combined[tree.adults$tip.label, ] 
+
+#labels
+labs <- adults_plot.combined %>% select(tip, labels)
+
+#make color pallette for new combined states
+col_ecocat <- c("both" = "#C107B6",
+                "diurnal" = "#FFA010",
+                "neither" = "black", #boxplot fig uses #636363 but with alpha it's lighter
+                "scansorial" = "#009E73")
+
+shape_ecocat <- c("both" = 23,
+                "diurnal" = 25,
+                "neither" = 21, 
+                "scansorial" = 24)
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
+```
+
+
+```{r ggtree-fig, fig.width = 10, fig.height=15}
+
+# Make the phylogeny plot
+p <- ggtree(tree.adults) %<+% labs + 
+     geom_tiplab(cex = 3, aes(label = labels), fontface = 3) + 
+   xlim_tree(450) + 
+   coord_cartesian(clip = 'off') 
+
+
+# Make a second plot next to the phylogeny (dot plot of t50 values)
+p2 <- facet_plot(p, panel="t50 (nm)", data=adults_plot.combined, geom=geom_point, aes(x=t50_merge, fill = eco_cat, col = eco_cat, shape = eco_cat), cex = 2.8, alpha = 0.9) +
+  scale_fill_manual(values = col_ecocat,
+                     name = "Ecology",
+                     breaks = c("scansorial", "diurnal", "both", "neither"),
+                     labels = c("scansorial", "diurnal", "both", "neither")) +
+  scale_color_manual(values = col_ecocat,
+                     name = "Ecology",
+                     breaks = c("scansorial", "diurnal", "both", "neither"),
+                     labels = c("scansorial", "diurnal", "both", "neither")) +
+  scale_shape_manual(values = shape_ecocat,
+                     name = "Ecology",
+                     breaks = c("scansorial", "diurnal", "both", "neither"),
+                     labels = c("scansorial", "diurnal", "both", "neither"))
+
+# Make a third plot next to the first two (bar plot of %UVA)
+p3 <- facet_plot(p2, panel='%UVA', data=adults_plot.combined, geom=geom_segment, aes(x=0, xend=pUVA_merge, y=y, yend=y, color = eco_cat), size=3, alpha = 0.9) +
+  theme_tree2(legend.position=c(.07, .93)) #add scale bars and move legends
+
+#control widths of panels
+ gt = ggplot_gtable(ggplot_build(p3 +# set transparency
+    theme(
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_rect(fill = "transparent",colour = NA),
+        plot.background = element_rect(fill = "transparent",colour = NA)
+        )))
+# gtable_show_layout(gt) # will show you the layout - very handy function
+# gt # see plot layout in table format
+# gt$layout$l[grep('tree', gt$layout$name)] # you want to find the column specific to panel-2
+ gt$widths[7] = 0.5*gt$widths[7] # reduce column 7
+ gt$widths[9] = 0.5*gt$widths[9] 
+
+ #print figure
+p3 
+```
+
+```{r, results = "hide"}
+#export as pdf
+pdf("../Figures/ggtree-fig.pdf", width = 10, height = 15)
+grid::grid.draw(gt) # plot with grid draw
+dev.off()
+```
+
+
+
