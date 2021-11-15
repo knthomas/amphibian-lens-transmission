@@ -291,52 +291,67 @@ col_act <- c("nondiurnal" = "#636363",
 #create shape vector for source of data
 sh_source <- c("literature" = 1, 
                "this_study" = 19)
+
+
+############# new code ########
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
+
+#create shape vector for source of data
+sh_source_hab <- c("literature" = 2, 
+               "this_study" = 17)
+
+#create shape vector for source of data
+sh_source_act <- c("literature" = 6, 
+               "this_study" = 25)
+
 ```
 
 
 ```{r boxplots-eco}
 
-# Scansoriality ------
 
 # boxplot of T50 across habs
 boxplot_habs.t50 <- ggplot(data = lens_adults, 
-                       aes(x = hab, y = t50)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
- geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
-  scale_color_manual(values = col_hab,
-                     name = "Habitat",
-                     breaks = c("scansorial", "other"),
-                     labels = c("scansorial", "non-scans.")) +
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
+                       aes(x = hab, y = t50, fill = hab)) + 
+  geom_violin(trim=TRUE, alpha = 0.5, width = 1) +
+  scale_fill_manual(values = col_hab) +
+  geom_boxplot(width=0.2, fill="white", outlier.alpha = 0)+
+  stat_summary(fun.y = mean, aes(fill = hab), geom = "point", shape = 23, size = 2.5, alpha = 0.5, show_guide = FALSE) +
+ geom_jitter(aes(shape = source), size = 1, alpha = 0.9, position = position_jitter(0.12)) +
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background +
+  theme(text = element_text(size=12), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) +
   scale_x_discrete(labels=c("scansorial" = "scansorial",
                             "other" = "non-scans.")) +
   scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
   xlab("") +
   ylab("t50 (nm)")
 
+
 # boxplot of %UVA across habs
 boxplot_habs.uva <- ggplot(data = lens_adults, 
-                       aes(x = hab, y = pUVA)) + 
-  geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
-  
- geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
-  scale_color_manual(values = col_hab,
-                     name = "Habitat",
-                     breaks = c("scansorial", "other"),
-                     labels = c("scansorial", "non-scans.")) +
+                       aes(x = hab, y = pUVA, fill = hab)) + 
+ geom_violin(trim=TRUE, alpha = 0.5, width = 1) +
+  scale_fill_manual(values = col_hab) +
+  geom_boxplot(width=0.2, fill="white", outlier.alpha = 0)+
+  stat_summary(fun.y = mean, aes(fill = hab), geom = "point", shape = 23, size = 2.5, alpha = 0.5, show_guide = FALSE) +
+ geom_jitter(aes(shape = source), size = 1, alpha = 0.9, position = position_jitter(0.12)) +
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  theme(text = element_text(size=12), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) +
   xlab("Scansoriality") +
   scale_x_discrete(labels=c("scansorial" = "scansorial",
                             "other" = "non-scans.")) +
@@ -354,21 +369,18 @@ plot_grid(boxplot_habs.t50, boxplot_habs.uva,  #list of plots to arrange in grid
 # boxplot of T50 across acts
 boxplot_act.t50 <- lens_adults %>%
   mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
-  ggplot(aes(x = act, y = t50)) + 
-   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
-  #controls what stats shown
- geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
-   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
-  scale_color_manual(values = col_act,
-                     name = "Activity",
-                     breaks = c("diurnal", "nondiurnal"),
-                     labels = c("diurnal", "non-diurnal")) +
+  ggplot(aes(x = act, y = t50, fill = act)) + 
+  geom_violin(trim=TRUE, alpha = 0.5, width = 1) +
+  scale_fill_manual(values = col_act) +
+  geom_boxplot(width=0.2, fill="white", outlier.alpha = 0)+
+  stat_summary(fun.y = mean, aes(fill = act), geom = "point", shape = 23, size = 2.5, alpha = 0.5, show_guide = FALSE) +
+ geom_jitter(aes(shape = source), size = 1, alpha = 0.9, position = position_jitter(0.12)) +
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  theme(text = element_text(size=12), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) +
   scale_x_discrete(labels=c("diurnal" = "diurnal",
                             "nondiurnal" = "non-diurnal")) +
   scale_y_continuous(breaks = c(300,325,350,375,400,425), limits=c(300, 425)) +
@@ -376,23 +388,21 @@ boxplot_act.t50 <- lens_adults %>%
   ylab("t50 (nm)") +
   labs(fill = "Data source")
 
-# boxplot of %UVA across habs
+# boxplot of %UVA across activity periods
 boxplot_act.uva <- lens_adults %>%
   mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
-  ggplot(aes(x = act, y = pUVA)) + 
-   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
- geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
-  stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
-  scale_color_manual(values = col_act,
-                     name = "Activity",
-                     breaks = c("diurnal", "nondiurnal"),
-                     labels = c("diurnal", "non-diurnal")) +
+  ggplot(aes(x = act, y = pUVA, fill = act)) + 
+  geom_violin(trim=TRUE, alpha = 0.5, width = 1) +
+  scale_fill_manual(values = col_act) +
+  geom_boxplot(width=0.2, fill="white", outlier.alpha = 0)+
+  stat_summary(fun.y = mean, aes(fill = act), geom = "point", shape = 23, size = 2.5, alpha = 0.5, show_guide = FALSE) +
+ geom_jitter(aes(shape = source), size = 1, alpha = 0.9, position = position_jitter(0.12)) +
   scale_shape_manual(values = sh_source,
                      name = "Data",
                      breaks = c("this_study", "literature"),
                      labels = c("this study", "literature"),
                      guide = guide_legend(override.aes = list(color = "black"), fill = "black")) +
-  theme(text = element_text(size=14), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) + #controls background
+  theme(text = element_text(size=12), panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.key = element_rect(fill = NA)) +
   scale_x_discrete(labels=c("diurnal" = "diurnal",
                             "nondiurnal" = "non-diurnal")) +
   xlab("Diurnality") +
@@ -437,7 +447,7 @@ fig.d <- boxplot_act.uva +
 
 
 # boxplot of T50 across habs
-pdf("../Figures/boxplots.pdf", width = 5, height = 6)
+pdf("../Figures/boxplots.pdf", width = 7, height = 9)
 plot_grid(fig.a, fig.b, fig.c, fig.d,
           align = 'vh', 
           labels = c("A", "B", "C", "D"),
@@ -631,9 +641,6 @@ name.check(tree.adults, adults_plot.combined)
 #resort trait dataset to the order of tree tip labels
 adults_plot.combined <- adults_plot.combined[tree.adults$tip.label, ] 
 
-#labels
-labs <- adults_plot.combined %>% select(tip, labels)
-
 #make color pallette for new combined states
 col_ecocat <- c("both" = "#C107B6",
                 "diurnal" = "#FFA010",
@@ -654,13 +661,26 @@ col_act <- c("nondiurnal" = "#636363",
              "diurnal" = "#FFA010")
 ```
 
+We also update the label for _Brachycephalus ephippium_ in the phylogeny, as it has been recently changed to _Brachycephalus rotenbergae_ in the region we sampled (Nunes et al. 2021). 
+
+```{r}
+
+#rename in dataset 
+adults_plot.combined <- adults_plot.combined %>%
+  mutate(labels = recode_factor(labels, "Brachycephalus ephippium" = "Brachycephalus rotenbergae"))
+
+#labels
+labs <- adults_plot.combined %>% select(tip, labels)
+
+```
+
 
 ```{r ggtree-fig, fig.width = 10, fig.height=15}
 
 # Make the phylogeny plot
 p <- ggtree(tree.adults) %<+% labs + 
-     geom_tiplab(cex = 3, aes(label = labels), fontface = 3) + 
-   xlim_tree(450) + 
+     geom_tiplab(size = 3.5, aes(label = labels), fontface = 4) + 
+   xlim_tree(500) + 
    coord_cartesian(clip = 'off') 
 
 
@@ -707,6 +727,262 @@ pdf("../Figures/ggtree-fig.pdf", width = 10, height = 15)
 grid::grid.draw(gt) # plot with grid draw
 dev.off()
 ```
+```{r, results = "hide"}
+
+#extract legend from dot plot
+leg <- cowplot::get_legend(p2)
+
+#export legend as pdf
+pdf("../Figures/ggtree-leg.pdf", width = 2, height = 2)
+plot(leg)
+dev.off()
+```
 
 
+# Comparative evolutionary models 
 
+Here, we used PGLS models in caper to run phylogenetic ANOVAs to test for associations between lens transmission and ecological variables while accounting for evolutionary non-independence among species. These models use all available data, including all species we sampled plus all additional species available in published literature. Because published measurements did not always record transmission down to 305nm, we could not calculate %UVA (400-305nm) for 10 species. Thus, our species sampling for t50 (n = 114) is higher than for %UVA (n = 104) in these models. 
+
+## t50 and ecology 
+
+```{r, results = "hide"}
+
+# Prep data and phylogeny -----
+
+#subset data for T50
+adult_t50 <- adults_merged %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, t50_merge, hab, act)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_t50) <- adult_t50$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adult_t50)
+
+#resort trait dataset to the order of tree tip labels
+adult_t50 <- adult_t50[tree.adults$tip.label, ] 
+
+
+# Prep data for caper -------
+
+#use caper function to combine phylogeny and data into one object 
+#(this function also matches species names in tree and dataset)
+t50.comp <- comparative.data(phy = tree.adults, data = adult_t50, 
+                             names.col = tip, 
+                             vcv = TRUE, 
+                             na.omit = FALSE, 
+                             warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+t50.comp$dropped$tips #phylogeny
+t50.comp$dropped$unmatched.rows #dataset
+```
+
+### t50 across habitats
+
+Species that climb up plants/trees (=scansorial) have significantly higher t50 values (more UV filtering) than non-scansorial species in a phylogenetic ANOVA.
+
+```{r}
+
+#view distribution of data
+table(adult_t50$hab)
+
+#habitat vs. T50
+pgls_hab.t50 <- pgls(t50_merge ~ hab, 
+               data = t50.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_hab.t50)
+par(mfrow = c(1, 1))
+
+#Likelihood plot for Pagel's lambda
+lambda.hab.t50 <- pgls.profile(pgls_hab.t50, "lambda")
+plot(lambda.hab.t50)
+
+#main effects
+anova(pgls_hab.t50)
+
+#coefficients
+summary(pgls_hab.t50)
+```
+
+### t50 across activity periods
+
+Diurnal (day-active) species have significantly higher t50 values (more UV filtering) than non-diurnal species in a phylogenetic ANOVA.
+
+```{r}
+
+#view distribution of data
+table(adult_t50$act)
+
+#activity per vs. T50
+pgls_act.t50 <- pgls(t50_merge ~ act, 
+               data = t50.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_act.t50)
+par(mfrow = c(1, 1))
+
+#Likelihood plot for Pagel's lambda
+lambda.act.t50 <- pgls.profile(pgls_act.t50, "lambda")
+plot(lambda.act.t50)
+
+#main effects
+anova(pgls_act.t50)
+
+#coefficients
+summary(pgls_act.t50)
+```
+
+## %UVA and ecology 
+
+Here, we used the same type of models to test for associations between ecology and %UVA transmitted through lenses across species. Note that the species dataset for these analyses are slightly reduced; 10 species with data gathered from the literature could not be included, as transmission measurements were not made down to 305nm.
+
+```{r, results = "hide"}
+
+# Prep data and phylogeny -----
+
+#subset data for uva
+adult_uva <- adults_merged %>%
+  filter(!is.na(pUVA_merge)) %>%
+  mutate(tip = ASW_names) %>%
+  select(tip, pUVA_merge, hab, act, t50_merge)
+
+# set row names in dataset to match the tip labels in the tree
+row.names(adult_uva) <- adult_uva$tip
+
+#check that phylogeny and data match exactly
+name.check(tree.adults, adult_uva)
+
+#make list of taxa to drop (in tree but not in dataset)
+drops <- setdiff(tree.adults$tip.label, adult_uva$tip)
+
+#drop unwanted tips from phylogeny
+tree.adults.uva <- drop.tip(phy = tree.adults, tip = drops) 
+
+#check that phylogeny tips and data match exactly (if they match will return "OK")
+name.check(tree.adults.uva, adult_uva)
+
+#resort trait dataset to the order of tree tip labels
+adult_uva <- adult_uva[tree.adults.uva$tip.label, ] 
+
+# Prep data for caper -------
+
+#use caper function to combine phylogeny and data into one object 
+#(this function also matches species names in tree and dataset)
+uva.comp <- comparative.data(phy = tree.adults.uva, data = adult_uva, 
+                             names.col = tip, 
+                             vcv = TRUE, 
+                             na.omit = FALSE, 
+                             warn.dropped = TRUE)
+
+#check for dropped tips or dropped species
+uva.comp$dropped$tips #phylogeny
+uva.comp$dropped$unmatched.rows #dataset
+```
+
+### %UVA across habitats
+
+Scansorial (climbing) species have significantly lower %UVA (more UV filtering) than non-scansorial species in a phylogenetic ANOVA. This is consistent with the findings based on t50. 
+
+```{r}
+#view distribution of data
+table(adult_uva$hab)
+
+#habitat vs. UVA
+pgls_hab.uva <- pgls(pUVA_merge ~ hab, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_hab.uva)
+par(mfrow = c(1, 1))
+
+#Likelihood plot for Pagel's lambda
+lambda.hab.uva <- pgls.profile(pgls_hab.uva, "lambda")
+plot(lambda.hab.uva)
+
+#main effects
+anova(pgls_hab.uva)
+
+#coefficients
+summary(pgls_hab.uva)
+```
+
+### %UVA across activity periods
+
+Diurnal (day-active) species have lower %UVA transmission than non-diurnal species (the trend we expect), but the difference is not significant. This is different from our findings using t50, which indicated a significant difference between diurnal and non-diurnal species. This likely is the result of reduced sampling for diurnal species using %UVA, as 4/13 diurnal species were omitted for %UVA analysis because transmission was not reported down to 305nm. 
+
+```{r}
+
+#view distribution of data
+table(adult_uva$act)
+
+#activity per vs. UVA
+pgls_act.uva <- pgls(pUVA_merge ~ act, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_act.uva)
+par(mfrow = c(1, 1))
+
+#Likelihood plot for Pagel's lambda
+lambda.act.uva <- pgls.profile(pgls_act.uva, "lambda")
+plot(lambda.act.uva)
+
+#main effects
+anova(pgls_act.uva)
+
+#coefficients
+summary(pgls_act.uva)
+
+```
+
+### t50 across activity periods with reduced dataset
+
+We found that diurnal species have significantly higher t50s than non-diurnal species, but our comparison for %UVA showed no significant difference between diurnal and non-diurnal species. This may be because for %UVA, 10 species had to be dropped from the analysis, including 4 diurnal species out of only 14 total. Here, look at t50 in the reduced dataset to see if we lose the ability to detect a difference between groups with reduced sampling. 
+
+```{r}
+
+#view distribution of data
+table(adult_uva$act)
+
+#activity per vs. UVA
+pgls_act.t50red <- pgls(t50_merge ~ act, 
+               data = uva.comp,
+               lambda = "ML", 
+               param.CI = 0.95)
+
+#diagnostic plots
+par(mar = c(4,4,2,2))
+par(mfrow = c(2, 2))
+plot(pgls_act.t50red)
+par(mfrow = c(1, 1))
+
+#Likelihood plot for Pagel's lambda
+lambda.act.t50red <- pgls.profile(pgls_act.t50red, "lambda")
+plot(lambda.act.t50red)
+
+#main effects
+anova(pgls_act.t50red)
+
+#coefficients
+summary(pgls_act.t50red)
+
+```
