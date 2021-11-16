@@ -17,8 +17,6 @@ mvMORPH script for Habitat __with lens size__. The dataset for `t50` and `pUVA` 
 ### Prep
 
 ```{r echo=TRUE, warning=FALSE, message=FALSE}
-# set working directory
-setwd("~/Documents/vision project/comparative_data/")
 
 # load required libraries
 library(tidyverse)
