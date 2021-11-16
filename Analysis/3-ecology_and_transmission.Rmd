@@ -278,6 +278,26 @@ dev.off()
 
 Here we plot adult lens transmission metrics (t50 and %UVA) across ecological categories to visualize differences. 
 
+```{r cols, results = "hide"}
+
+# create vectors of colors for habitat
+col_hab <- c("scansorial" = "#009E73",
+              "other"  = "#636363")
+
+#create vector of colors for activity period
+col_act <- c("nondiurnal" = "#636363",
+             "diurnal" = "#FFA010")
+
+#create vector of colors for activity period
+col_dich <- c("nondichromatic" = "#636363",
+              "dichromatic" = "#03a1fc")
+
+#create shape vector for source of data
+sh_source <- c("literature" = 1, 
+               "this_study" = 19)
+```
+
+
 ```{r boxplots-eco}
 
 # Scansoriality ------
@@ -286,7 +306,7 @@ Here we plot adult lens transmission metrics (t50 and %UVA) across ecological ca
 boxplot_habs.t50 <- ggplot(data = lens_adults, 
                        aes(x = hab, y = t50)) + 
   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
- geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = hab, shape = source), size = 1.5, alpha = 0.7, position = position_jitter(0.15)) +
   scale_color_manual(values = col_hab,
                      name = "Habitat",
                      breaks = c("scansorial", "other"),
@@ -309,7 +329,7 @@ boxplot_habs.uva <- ggplot(data = lens_adults,
                        aes(x = hab, y = pUVA)) + 
   geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   
- geom_jitter(aes(color = hab, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = hab, shape = source), size = 1.5, alpha = 0.7, position = position_jitter(0.15)) +
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) + #controls what stats shown
   scale_color_manual(values = col_hab,
                      name = "Habitat",
@@ -341,7 +361,7 @@ boxplot_act.t50 <- lens_adults %>%
   ggplot(aes(x = act, y = t50)) + 
    geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
   #controls what stats shown
- geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = act, shape = source), size = 1.5, alpha = 0.7, position = position_jitter(0.15)) +
    stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
   scale_color_manual(values = col_act,
                      name = "Activity",
@@ -365,7 +385,7 @@ boxplot_act.uva <- lens_adults %>%
   mutate(act = fct_relevel(act, "diurnal", "nondiurnal")) %>%
   ggplot(aes(x = act, y = pUVA)) + 
    geom_boxplot(notch = FALSE, outlier.shape = NA, alpha = 0.9) + #controls boxes  
- geom_jitter(aes(color = act, shape = source), size = 2, alpha = 0.7, position = position_jitter(0.15)) +
+ geom_jitter(aes(color = act, shape = source), size = 1.5, alpha = 0.7, position = position_jitter(0.15)) +
   stat_summary(fun.y = mean, colour = "black", geom = "point", shape = 18, size = 3, show_guide = FALSE) +
   scale_color_manual(values = col_act,
                      name = "Activity",
@@ -429,7 +449,6 @@ plot_grid(fig.a, fig.b, fig.c, fig.d,
           vjust = 1.8, 
           nrow = 2)
 dev.off()
-
 ```
 
 ## Plots of t50 and %UVA values onto phylogeny
