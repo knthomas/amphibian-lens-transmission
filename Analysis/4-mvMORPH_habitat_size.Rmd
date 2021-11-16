@@ -28,9 +28,9 @@ library(mvMORPH)
 source("./find_transitions.R")
 
 # set colour scheme
-my_cols<-c("diurnal"="deepskyblue3",
+my_cols<-c("diurnal"="#FFA010",
          "nondiurnal"="black",
-         "scansorial"="chartreuse3",
+         "scansorial"="#009E73",
          "other"="black")
 ```
 
