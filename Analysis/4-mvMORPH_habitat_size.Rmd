@@ -39,10 +39,10 @@ my_cols<-c("diurnal"="#FFA010",
 
 ```{r}
 # data
-dat<-read_csv("data_cleaned.csv")
+dat <- read_csv("../Data/tidy data/lenses_compiled.csv")
 
 # tree
-tree<-read.tree("pruned_tree.txt")
+tree<-read.tree("../Data/tidy data/pruned_tree.txt")
 ```
 
 Here i am loading the 'cleaned' data to avoid repeating the data cleaning from the previous script. Nonetheless, I will perform an extra filter step here, because I only want to work with species that have a complete set of data:
