@@ -1,0 +1,388 @@
+---
+title: "mvMORPH: Habitat + Lens Size"
+author: "H. Christoph Liedtke"
+date: "21/05/2021"
+output:
+  html_document:
+    theme: flatly
+    highlight: breezedark
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true 
+---
+
+
+### Prep
+
+```{r echo=TRUE, warning=FALSE, message=FALSE}
+
+# load required libraries
+library(ggtree)
+library(gridExtra)
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+library(ape)
+library(geiger)
+library(mvMORPH)
+
+# load custom functions
+source("./find_transitions.R")
+
+# set colour scheme
+my_cols<-c("diurnal"="#FFA010",
+         "nondiurnal"="black",
+         "scansorial"="#009E73",
+         "other"="black")
+```
+
+### Load data
+
+
+```{r}
+# data (excluding tadpoles/juveniles)
+dat <- read_csv("../Data/tidy data/lenses_compiled.csv", na = c("NA",NA, "unknown")) %>%
+  select(ASW_names, everything()) %>% # put ASW_names first (important for later) 
+  filter(stage == "adult" | is.na(stage))
+
+# tree
+tree<-read.tree("../Data/tidy data/pruned_tree.txt")
+tree
+```
+
+### Check data and tree match and are in good shape
+
+```{r}
+## is tree structure ok?
+is.ultrametric(tree)
+is.binary(tree)
+
+## are species duplicated?
+any(duplicated(tree$tip.label)) # should be FALSE
+dat$ASW_names[duplicated(dat$ASW_names)]
+```
+It looks like there are 8 species that appear more than once. We can pull out just those like so: 
+
+```{r}
+dat %>%
+  filter(ASW_names %in% dat$ASW_names[duplicated(dat$ASW_names)]) %>%
+  select(genus_species, stage, dataset, ASW_names) %>%
+  arrange(ASW_names) %>%
+  kable() %>%
+  kable_styling(full_width = F)
+```
+  
+As already highlighted in the manuscript, the duplicates stem from this_study vs. Yovanovich. I will keep only this_study here. 
+  
+```{r}
+## prepare a final, clean dataset:
+dat_clean<- dat %>%
+  filter(!(ASW_names %in% ASW_names[duplicated(ASW_names)] & is.na(stage)))
+
+any(duplicated(dat_clean$ASW_names)) # no more duplicates (should be FALSE)
+```
+ 
+Lens sizes are not normally distributed. 
+
+```{r fig.height=4}
+gg_lens<-ggplot(dat_clean, aes(x=approx_size)) +
+  geom_histogram(bins = 10) +
+  ggtitle("uncorrected lens sizes")
+
+# log 10 transformed
+gg_log_lens<-ggplot(dat_clean, aes(x=log10(approx_size))) +
+  geom_histogram(bins=10) +
+  ggtitle("log10 lens sizes")
+
+grid.arrange(gg_lens, gg_log_lens, nrow=1)
+
+
+```
+
+It would seem wise transforming lens sizes going forward:
+
+```{r}
+dat_clean <- dat_clean %>%
+  mutate(approx_size=log10(approx_size))
+```
+
+I will perform an extra filter step here, because I only want to work with species that have a complete set of data: 
+
+```{r}
+## keep only the data columns I will use, and drop all species with NA's
+dat_clean <- dat_clean %>%
+  select(ASW_names, hab, act, approx_size, t50, pUVA) %>%
+  drop_na()
+
+# prune tree to include only the same species
+tree<-keep.tip(tree, dat_clean$ASW_names)
+
+# reorder the data to match the order of the tree
+dat_clean <-dat_clean %>%
+  arrange(match(ASW_names, tree$tip.label))
+
+all(dat_clean$ASW_names == tree$tip.label) # should be TRUE
+
+```
+
+## Evolution of lens transmission and habitat
+
+### Ancestral state reconstruction:
+
+Stochastic character mapping.
+
+```{r fig.height=8}
+# perform stochasitc character mapping
+hab_tree<-make.simmap(tree=tree,
+                          x=pull(dat_clean, hab, name=ASW_names),
+                          model="ER", nsim=10) ## nsims here set to 10, but should ideally be higher. I doubt it will change the out come for this fairly simple data set though.
+hab_ace <- describe.simmap(hab_tree, plot=F)
+
+# pull out most likely ancestral state per node
+hab_node_states <- colnames(hab_ace$ace)[apply(MAR=1, FUN=which.max, X = hab_ace$ace)]
+
+# create a simmap object with the branches painted according to the ancestral state reconstruction
+hab_tree_painted<-find_transitions(phy=tree,
+                                       tip_states = dat_clean$hab,
+                                       node_states = hab_node_states,
+                                       simmap = T,
+                                       stem_prop = 1)
+
+plot(hab_tree_painted, colors=my_cols[unique(dat_clean$hab)], fsize=0.5)
+legend("bottomleft",
+       col=my_cols[unique(dat_clean$hab)],
+       legend=names(my_cols[unique(dat_clean$hab)]),
+       pch=19)
+```
+
+```{r}
+#export supplementary figure
+pdf("../Figures/supp-scans.pdf", width = 6, height = 8)
+plot(hab_tree_painted, colors=my_cols[unique(dat_clean$hab)], fsize=0.5)
+legend("bottomleft",
+       col=my_cols[unique(dat_clean$hab)],
+       legend=names(my_cols[unique(dat_clean$hab)]),
+       pch=19)
+dev.off()
+```
+  
+  
+### mvMORPH model fitting for t50
+
+We will fit four models. A Brownian motion model or an OU model with a single set of parameters for the whole tree, or a BM or OU model with different parameters for each 'regime'.
+
+```{r}
+# empty list to fill
+hab_mvmodels_t50<-list()
+
+# fill the list with the different model results
+hab_mvmodels_t50$ou1<-mvOU(hab_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="OU1",
+                           diagnostic=T, echo=F)
+hab_mvmodels_t50$oum<-mvOU(hab_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="OUM",
+                           diagnostic=T, echo=F,
+                           optimization=c("Nelder-Mead")) ### NOTE THE DIFFERENT OPTOMIZATION METHOD
+hab_mvmodels_t50$bm1<-mvBM(hab_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="BM1",
+                           diagnostic=T, echo=F)
+hab_mvmodels_t50$bmm<-mvBM(hab_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="BMM",
+                           diagnostic=T, echo=F)
+```
+  
+Withing the two model types, we could compare their fit with a log likelihood ratio test:
+```{r}
+LRT(hab_mvmodels_t50$oum,hab_mvmodels_t50$ou1)
+LRT(hab_mvmodels_t50$bmm,hab_mvmodels_t50$bm1)
+```
+  
+The BM models are not significantly different from each other. We can now compare the AIC scores of all 4 models:
+```{r}
+sort(sapply(hab_mvmodels_t50, `[[`, "AIC"))
+```
+    
+It seems like an OU model with multiple optima is best.  
+  
+__NOTE:__ I used a different optimization method for the oum model because the default resulted in an optomization warning. 
+  
+Parameter of this best model:
+
+```{r}
+hab_mvmodels_t50$oum
+```
+  
+  
+### mvMORPH model fitting for pUVA
+  
+we can repeat this for pUVA.  
+
+```{r}
+hab_mvmodels_pUVA<-list()
+hab_mvmodels_pUVA$ou1<-mvOU(hab_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="OU1",
+                                diagnostic=T, echo=F)
+hab_mvmodels_pUVA$oum<-mvOU(hab_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="OUM",
+                                diagnostic=T, echo=F)
+hab_mvmodels_pUVA$bm1<-mvBM(hab_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="BM1",
+                                diagnostic=T, echo=F)
+hab_mvmodels_pUVA$bmm<-mvBM(hab_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="BMM",
+                                diagnostic=T, echo=F)
+# LRT
+LRT(hab_mvmodels_pUVA$oum,hab_mvmodels_pUVA$ou1)
+LRT(hab_mvmodels_pUVA$bmm,hab_mvmodels_pUVA$bm1) # not significant
+
+# AIC scores
+sort(sapply(hab_mvmodels_pUVA, `[[`, "AIC"))
+
+# again, OUM wins
+hab_mvmodels_pUVA$oum
+```
+  
+As expected, we find the inverse pattern to t50, but again, it is reassuring to find that a multiple-optima OU model is better than a single BM model. 
+  
+### Summary  
+  
+In summary, these analyses suggest that t50 and pUVA are under selection (OU preferred over BM) and that the trait optima are different for the different regimes.
+  
+## Evolution of lens transmission and activity period
+
+### Ancestral state reconstruction:
+
+Stochastic character mapping.
+
+```{r fig.height=8}
+# perform stochasitc character mapping
+act_tree<-make.simmap(tree=tree,
+                          x=pull(dat_clean, act, name=ASW_names),
+                          model="ER", nsim=10) ## nsims here set to 10, but should ideally be higher. I doubt it will change the out come for this fairly simple data set though.
+act_ace <- describe.simmap(act_tree, plot=F)
+
+# pull out most likely ancestral state per node
+act_node_states <- colnames(act_ace$ace)[apply(MAR=1, FUN=which.max, X = act_ace$ace)]
+
+# create a simmap object with the branches painted according to the ancestral state reconstruction
+act_tree_painted<-find_transitions(phy=tree,
+                                       tip_states = dat_clean$act,
+                                       node_states = act_node_states,
+                                       simmap = T,
+                                       stem_prop = 1)
+
+plot(act_tree_painted, colors=my_cols[unique(dat_clean$act)], fsize=0.5)
+legend("bottomleft",
+       col=my_cols[unique(dat_clean$act)],
+       legend=names(my_cols[unique(dat_clean$act)]),
+       pch=19)
+```
+```{r}
+#export supplementary figure
+pdf("../Figures/supp-diurnal.pdf", width = 6, height = 8)
+plot(act_tree_painted, colors=my_cols[unique(dat_clean$act)], fsize=0.5)
+legend("bottomleft",
+       col=my_cols[unique(dat_clean$act)],
+       legend=names(my_cols[unique(dat_clean$act)]),
+       pch=19)
+dev.off()
+``` 
+  
+### mvMORPH model fitting for t50
+
+We will fit four models. A Brownian motion model or an OU model with a single set of parameters for the whole tree, or a BM or OU model with different parameters for each 'regime'.
+
+```{r}
+# empty list to fill
+act_mvmodels_t50<-list()
+
+# fill the list with the different model results
+act_mvmodels_t50$ou1<-mvOU(act_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="OU1",
+                           diagnostic=T, echo=F)
+act_mvmodels_t50$oum<-mvOU(act_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="OUM",
+                           diagnostic=T, echo=F,
+                           optimization=c("Nelder-Mead")) ### NOTE THE DIFFERENT OPTOMIZATION METHOD
+act_mvmodels_t50$bm1<-mvBM(act_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="BM1",
+                           diagnostic=T, echo=F)
+act_mvmodels_t50$bmm<-mvBM(act_tree_painted,
+                           dat_clean[,c("approx_size","t50")],
+                           model="BMM",
+                           diagnostic=T, echo=F)
+```
+  
+Withing the two model types, we could compare their fit with a log likelihood ratio test:
+```{r}
+LRT(act_mvmodels_t50$oum,act_mvmodels_t50$ou1)
+LRT(act_mvmodels_t50$bmm,act_mvmodels_t50$bm1)
+```
+  
+We can now compare the AIC scores of all 4 models:
+```{r}
+sort(sapply(act_mvmodels_t50, `[[`, "AIC"))
+```
+    
+It seems like both the OU and BM model with multiple optima perform equally well. 
+  
+__NOTE:__ I used a different optimization method for the oum model because the default resulted in an optomization warning.
+  
+Parameter of the best models:
+
+```{r}
+act_mvmodels_t50$oum
+act_mvmodels_t50$bmm
+
+```
+  
+  
+### mvMORPH model fitting for pUVA
+  
+we can repeat this for pUVA.  
+
+```{r}
+act_mvmodels_pUVA<-list()
+act_mvmodels_pUVA$ou1<-mvOU(act_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="OU1",
+                                diagnostic=T, echo=F)
+act_mvmodels_pUVA$oum<-mvOU(act_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="OUM",
+                                diagnostic=T, echo=F)
+act_mvmodels_pUVA$bm1<-mvBM(act_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="BM1",
+                                diagnostic=T, echo=F)
+act_mvmodels_pUVA$bmm<-mvBM(act_tree_painted,
+                                dat_clean[,c("approx_size","pUVA")],
+                                model="BMM",
+                                diagnostic=T, echo=F)
+# LRT
+LRT(act_mvmodels_pUVA$oum,act_mvmodels_pUVA$ou1)
+LRT(act_mvmodels_pUVA$bmm,act_mvmodels_pUVA$bm1)
+
+# AIC scores
+sort(sapply(act_mvmodels_pUVA, `[[`, "AIC"))
+
+# OUM wins
+act_mvmodels_pUVA$oum
+```
+  
+  
+### Summary  
+  
+In summary, these analyses suggest that pUVA are under selection (OU preferred over BM) and that the trait optima are different for the different regimes. for t50, a multi optima scenario is again best, but here BMM and OUM perform similarly.
