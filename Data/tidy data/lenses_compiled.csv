@@ -1,0 +1,126 @@
+order,family,genus_species,stage,dataset,source,diam_mm,approx_size,t450nm,t50,pUVA,hab,act,ASW_names
+Anura,Hylidae,Acris_blanchardi,adult,this_study,this_study,1.5,1.5,89.6,394,13.3,other,diurnal,Acris_blanchardi
+Anura,Leptodactylidae,Adenomera_andreae,adult,this_study,this_study,1,1,86.8,337,63.4,other,nondiurnal,Adenomera_andreae
+Anura,Alytidae,Alytes_cisternasii,adult,this_study,this_study,1.5,1.5,76,380,37.1,other,nondiurnal,Alytes_cisternasii
+Anura,Alytidae,Alytes_muletensis,tadpole,this_study,this_study,1,1,84.4,336,59.3,other,nondiurnal,Alytes_muletensis
+Anura,Alytidae,Alytes_muletensis,adult,this_study,this_study,1,1,77.8,351,51.5,other,nondiurnal,Alytes_muletensis
+Caudata,Ambystomatidae,Ambystoma_mexicanum,adult,this_study,this_study,1.6,1.6,99.4,318,73.4,other,nondiurnal,Ambystoma_mexicanum
+Anura,Hylidae,Aplastodiscus_leucopygius,adult,this_study,this_study,2.5,2.5,89.5,385,30.5,scansorial,nondiurnal,Aplastodiscus_leucopygius
+Anura,Ascaphidae,Ascaphus_truei,adult,this_study,this_study,2.5-3.0,2.75,91,349,57.5,other,nondiurnal,Ascaphus_truei
+Caudata,Plethodontidae,Batrachoseps_attenuatus,adult,this_study,this_study,1,1,73.3,360,34.4,other,nondiurnal,Batrachoseps_attenuatus
+Anura,Hylidae,Boana_polytaenia,adult,this_study,this_study,2.5,2.5,91.6,365,51.5,scansorial,nondiurnal,Boana_polytaenia
+Anura,Hylidae,Boana_calcarata,adult,this_study,this_study,3,3,77,398,18.5,scansorial,nondiurnal,Boana_calcarata
+Anura,Hylidae,Boana_cinerascens,adult,this_study,this_study,2,2,80.1,389,21.8,scansorial,nondiurnal,Boana_cinerascens
+Anura,Hylidae,Boana_diabolica,adult,this_study,this_study,2.5-3.0,2.75,70,396,20.9,scansorial,nondiurnal,Boana_diabolica
+Anura,Hylidae,Boana_faber,adult,this_study,this_study,5.5,5.5,82.3,399,6.1,scansorial,nondiurnal,Boana_faber
+Anura,Hylidae,Boana_pardalis,adult,this_study,this_study,4.5,4.5,89.4,387,25.2,scansorial,nondiurnal,Boana_pardalis
+Anura,Hylidae,Boana_punctata,adult,this_study,this_study,1.5,1.5,80.7,379,37.8,scansorial,nondiurnal,Boana_punctata
+Anura,Hylidae,Bokermannohyla_circumdata,adult,this_study,this_study,4,4,89.9,389,20.9,scansorial,nondiurnal,Bokermannohyla_circumdata
+Anura,Mantellidae,Boophis_erythrodactylus,adult,this_study,this_study,3,3,80.6,396,12.9,scansorial,nondiurnal,Boophis_erythrodactylus
+Anura,Brachycephalidae,Brachycephalus_ephippium,adult,this_study,this_study,1,1,91.7,356,48.6,other,diurnal,Brachycephalus_ephippium
+Anura,Bufonidae,Bufo_bufo,adult,this_study,this_study,3.0-3.5,3.25,98,341,66.8,other,nondiurnal,Bufo_bufo
+Anura,Microhylidae,Chiasmocleis_shudikarensis,adult,this_study,this_study,1,1,83.3,341,58.2,other,nondiurnal,Chiasmocleis_shudikarensis
+Anura,Ceratobatrachidae,Cornufer_guentheri,adult,this_study,this_study,4,4,90.5,358,52.8,other,nondiurnal,Cornufer_guentheri
+Caudata,Salamandridae,Cynops_pyrrhogaster,adult,this_study,this_study,0.8-0.9,0.85,97.2,318,74,other,nondiurnal,Cynops_pyrrhogaster
+Anura,Dendrobatidae,Dendrobates_leucomelas,adult,this_study,this_study,1,1,89.1,326,54.8,other,diurnal,Dendrobates_leucomelas
+Anura,Hylidae,Dendropsophus_leucophyllatus,adult,this_study,this_study,1.5-3.0,2.25,75.4,384,33.7,scansorial,nondiurnal,Dendropsophus_leucophyllatus
+Anura,Hylidae,Dendropsophus_minusculus,adult,this_study,this_study,1.5-2.0,1.75,69.9,402,17.7,scansorial,nondiurnal,Dendropsophus_minusculus
+Anura,Hylidae,Dendropsophus_minutus,tadpole,this_study,this_study,1,1,74,359,48.2,scansorial,nondiurnal,Dendropsophus_minutus
+Anura,Alytidae,Discoglossus_galganoi,adult,this_study,this_study,2,2,92,346,59.6,other,nondiurnal,Discoglossus_galganoi
+Anura,Microhylidae,Dyscophus_guineti,adult,this_study,this_study,2,2,93.4,331,69.9,other,nondiurnal,Dyscophus_guineti
+Anura,Eleutherodactylidae,Eleutherodactylus_marnockii,adult,this_study,this_study,2,2,76,355,49.3,other,nondiurnal,Eleutherodactylus_marnockii
+Anura,Dendrobatidae,Epipedobates_tricolor,adult,this_study,this_study,1,1,79.8,413,23.1,other,diurnal,Epipedobates_tricolor
+Anura,Microhylidae,Gastrophryne_olivacea,adult,this_study,this_study,1,1,76.2,349,49.4,other,nondiurnal,Gastrophryne_olivacea
+Anura,Microhylidae,Glyphoglossus_guttulatus,adult,this_study,this_study,2.5,2.5,91.1,337,64.3,other,nondiurnal,Glyphoglossus_guttulatus
+Anura,Craugastoridae,Haddadus_binotatus,adult,this_study,this_study,1.5,1.5,98.3,327,73.7,other,nondiurnal,Haddadus_binotatus
+Anura,Hemisotidae,Hemisus_marmoratus,adult,this_study,this_study,1.5,1.5,84.9,345,57.3,other,nondiurnal,Hemisus_marmoratus
+Anura,Hyperoliidae,Heterixalus_alboguttatus,adult,this_study,this_study,1.5,1.5,88,397,23.5,scansorial,diurnal,Heterixalus_alboguttatus
+Anura,Centrolenidae,Hyalinobatrachium_cappellei,adult,this_study,this_study,1.0-1.5,1.25,80.7,359,47.9,scansorial,nondiurnal,Hyalinobatrachium_cappellei
+Anura,Hylidae,Dryophytes_cinereus,adult,this_study,this_study,2.5,2.5,76,370,42.5,scansorial,nondiurnal,Dryophytes_cinereus
+Anura,Hylodidae,Hylodes_phyllodes,adult_smaller,this_study,this_study,1,1,90,409,40.8,other,diurnal,Hylodes_phyllodes
+Anura,Hylodidae,Hylodes_phyllodes,adult,this_study,this_study,2,2,84.6,423,2,other,diurnal,Hylodes_phyllodes
+Anura,Hyperoliidae,Hyperolius_fusciventris,adult,this_study,this_study,1.5-2.0,1.75,86.8,394,29.2,scansorial,nondiurnal,Hyperolius_fusciventris
+Anura,Hyperoliidae,Hyperolius_riggenbachi,adult,this_study,this_study,2,2,84.9,407,5.7,scansorial,nondiurnal,Hyperolius_riggenbachi
+Anura,Brachycephalidae,Ischnocnema_henselii,adult,this_study,this_study,2,2,98.2,314,91.5,other,nondiurnal,Ischnocnema_henselii
+Anura,Brachycephalidae,Ischnocnema_parva,adult,this_study,this_study,1,1,83.4,322,67.3,other,nondiurnal,Ischnocnema_parva
+Anura,Hylidae,Itapotihyla_langsdorffii,adult,this_study,this_study,2,2,98.6,368,49.9,scansorial,nondiurnal,Itapotihyla_langsdorffii
+Anura,Microhylidae,Kaloula_pulchra,adult,this_study,this_study,2.0-3.0,2.5,84,339,58.5,other,nondiurnal,Kaloula_pulchra
+Anura,Hyperoliidae,Kassina_senegalensis,adult,this_study,this_study,3,3,97,348,60.1,other,nondiurnal,Kassina_senegalensis
+Anura,Ceratophryidae,Lepidobatrachus_laevis,adult,this_study,this_study,2,2,94.2,359,47.6,other,nondiurnal,Lepidobatrachus_laevis
+Anura,Leptodactylidae,Leptodactylus_fuscus,adult,this_study,this_study,3,3,88.4,370,37.2,other,nondiurnal,Leptodactylus_fuscus
+Anura,Leptodactylidae,Leptodactylus_knudseni,adult,this_study,this_study,6.0-7.0,6.5,78.6,380,25.7,other,nondiurnal,Leptodactylus_knudseni
+Anura,Leptodactylidae,Leptodactylus_pentadactylus,adult,this_study,this_study,2.5-6.0,4.25,81.1,364,45.6,other,nondiurnal,Leptodactylus_pentadactylus
+Anura,Leptodactylidae,Leptodactylus_podicipinus,adult,this_study,this_study,2.5,2.5,79.1,365,42.2,other,nondiurnal,Leptodactylus_podicipinus
+Anura,Leptodactylidae,Leptodactylus_rhodomystax,adult,this_study,this_study,2.5,2.5,71.4,397,24.1,other,nondiurnal,Leptodactylus_rhodomystax
+Caudata,Salamandridae,Lissotriton_vulgaris,adult,this_study,this_study,1,1,87.5,342,59.9,other,nondiurnal,Lissotriton_vulgaris
+Anura,Ranidae,Lithobates_sphenocephalus,adult,this_study,this_study,3.5,3.5,87.7,381,33.1,other,nondiurnal,Lithobates_sphenocephalus
+Anura,Leptodactylidae,Lithodytes_lineatus,adult,this_study,this_study,2.5-3.0,2.75,81.4,366,44,other,nondiurnal,Lithodytes_lineatus
+Anura,Mantellidae,Mantella_betsileo,adult,this_study,this_study,1.5,1.5,78.7,389,21.2,other,nondiurnal,Mantella_betsileo
+Anura,Mantellidae,Mantella_viridis,adult,this_study,this_study,1.5,1.5,77,368,37.9,other,diurnal,Mantella_viridis
+Anura,Megophridae,Megophrys_nasuta,adult,this_study,this_study,1.5,1.5,92.3,374,30.5,other,nondiurnal,Megophrys_nasuta
+Caudata,Salamandridae,Notophthalmus_viridescens,adult,this_study,this_study,1,1,85.1,347,57.1,other,nondiurnal,Notophthalmus_viridescens
+Anura,Hylidae,Scinax_rizibilis,adult,this_study,this_study,2.5,2.5,93.3,388,22.8,scansorial,nondiurnal,Scinax_rizibilis
+Anura,Hylidae,Osteocephalus_taurinus,adult,this_study,this_study,3.5-5.0,4.25,78.2,395,14.4,scansorial,nondiurnal,Osteocephalus_taurinus
+Anura,Hylidae,Osteopilus_septentrionalis,adult,this_study,this_study,3,3,85,397,10.3,scansorial,nondiurnal,Osteopilus_septentrionalis
+Anura,Pelobatidae,Pelobates_cultripes,adult,this_study,this_study,4,4,97.9,328,73.6,other,nondiurnal,Pelobates_cultripes
+Anura,Microhylidae,Phrynomantis_microps,adult,this_study,this_study,2,2,85.2,343,56.7,other,nondiurnal,Phrynomantis_microps
+Anura,Phyllomedusidae,Phyllomedusa_distincta,adult,this_study,this_study,4.5,4.5,93.8,362,55.2,scansorial,nondiurnal,Phyllomedusa_distincta
+Anura,Phyllomedusidae,Phyllomedusa_vaillantii,adult,this_study,this_study,4,4,85.1,348,54.6,scansorial,nondiurnal,Phyllomedusa_vaillantii
+Anura,Leptodactylidae,Physalaemus_cuvieri,adult,this_study,this_study,1.5,1.5,87.6,360,50,other,nondiurnal,Physalaemus_cuvieri
+Anura,Rhacophoridae,Polypedates_leucomystax,adult,this_study,this_study,4,4,91.3,391,16.6,scansorial,nondiurnal,Polypedates_leucomystax
+Anura,Craugastoridae,Pristimantis_chiastonotus,adult,this_study,this_study,1,1,74.6,364,46.3,other,nondiurnal,Pristimantis_chiastonotus
+Anura,Craugastoridae,Pristimantis_zeuctotylus,adult,this_study,this_study,2.5,2.5,74.5,388,25.9,scansorial,nondiurnal,Pristimantis_zeuctotylus
+Anura,Odontophrynidae,Proceratophrys_boiei,adult,this_study,this_study,1,1,91.5,332,69.2,other,nondiurnal,Proceratophrys_boiei
+Anura,Ranidae,Lithobates_pipiens,adult,this_study,this_study,2.7-3.9,3.3,99.9,392,15.4,other,nondiurnal,Lithobates_pipiens
+Anura,Ranidae,Rana_temporaria,adult,this_study,this_study,2.0-4.0,3,97.5,392,15.2,other,nondiurnal,Rana_temporaria
+Anura,Bufonidae,Rhaebo_guttatus,adult,this_study,this_study,8,8,78.3,365,43.4,other,nondiurnal,Rhaebo_guttatus
+Anura,Bufonidae,Rhinella_icterica,adult,this_study,this_study,6.5,6.5,92,338,63.5,other,nondiurnal,Rhinella_icterica
+Anura,Bufonidae,Rhinella_marina,adult,this_study,this_study,3.5,3.5,79.3,362,43.9,other,nondiurnal,Rhinella_marina
+Anura,Rhinophrynidae,Rhinophrynus_dorsalis,adult,this_study,this_study,1.0-1.5,1.25,81.9,349,53.5,other,nondiurnal,Rhinophrynus_dorsalis
+Caudata,Salamandridae,Salamandra_salamandra,adult,this_study,this_study,1.9-2.0,1.95,97.1,317,73.9,other,nondiurnal,Salamandra_salamandra
+Anura,Scaphiopodidae,Scaphiopus_couchii,adult,this_study,this_study,4.5-5.0,4.75,86.7,342,59.4,other,nondiurnal,Scaphiopus_couchii
+Anura,Hylidae,Scinax_boesemani,adult,this_study,this_study,1.5,1.5,85.2,376,41.5,scansorial,nondiurnal,Scinax_boesemani
+Anura,Hylidae,Scinax_cruentomma,adult,this_study,this_study,2.5,2.5,72.2,397,20.6,scansorial,nondiurnal,Scinax_cruentomma
+Anura,Hylidae,Scinax_hayii,adult,this_study,this_study,3.5,3.5,88.2,387,26.6,scansorial,nondiurnal,Scinax_hayii
+Anura,Bufonidae,Sclerophrys_maculata,adult,this_study,this_study,3,3,86.7,359,44.1,other,nondiurnal,Sclerophrys_maculata
+Anura,Scaphiopodidae,Spea_bombifrons,adult,this_study,this_study,3.5,3.5,82,349,49.3,other,nondiurnal,Spea_bombifrons
+Anura,Scaphiopodidae,Spea_multiplicata,adult,this_study,this_study,4,4,89.9,354,50.6,other,nondiurnal,Spea_multiplicata
+Anura,Centrolenidae,Vitreorana_uranoscopa,adult,this_study,this_study,2,2,89.1,361,46.6,scansorial,nondiurnal,Vitreorana_uranoscopa
+Anura,Pipidae,Xenopus_laevis,adult,this_study,this_study,2,2,89.4,352,52.9,other,nondiurnal,Xenopus_laevis
+Anura,Bufonidae,Bufo_bufo,unknown,Yovanovich et al. (2019),literature,unknown,NA,92,360,44.15,other,nondiurnal,Bufo_bufo
+Anura,Bufonidae,Rhinella_ornata,unknown,Yovanovich et al. (2019),literature,unknown,NA,93,344,54.88,other,nondiurnal,Rhinella_ornata
+Anura,Ranidae,Lithobates_catesbeianus,unknown,Yovanovich et al. (2019),literature,unknown,NA,85,400,9.54,other,nondiurnal,Lithobates_catesbeianus
+Anura,Ranidae,Lithobates_pipiens,unknown,Yovanovich et al. (2019),literature,unknown,NA,100,380,NA,other,nondiurnal,Lithobates_pipiens
+Anura,Ranidae,Rana_temporaria,unknown,Yovanovich et al. (2019),literature,unknown,NA,95,404,5.94,other,nondiurnal,Rana_temporaria
+Anura,Aromobatidae,Allobates_femoralis,unknown,Yovanovich et al. (2020),literature,unknown,NA,84,423,NA,other,diurnal,Allobates_femoralis
+Anura,Bombinatoridae,Bombina_orientalis,unknown,Yovanovich et al. (2020),literature,unknown,NA,91,300,95.55,other,nondiurnal,Bombina_orientalis
+Anura,Brachycephalidae,Brachycephalus_ephippium,unknown,Yovanovich et al. (2020),literature,unknown,NA,85,339,NA,other,diurnal,Brachycephalus_ephippium
+Anura,Brachycephalidae,Ischnocnema_parva,unknown,Yovanovich et al. (2020),literature,unknown,NA,81,324,61.96,other,nondiurnal,Ischnocnema_parva
+Anura,Bufonidae,Atelopus_varius,unknown,Yovanovich et al. (2020),literature,unknown,NA,93,331,75.3,other,diurnal,Atelopus_varius
+Anura,Bufonidae,Rhinella_icterica,unknown,Yovanovich et al. (2020),literature,unknown,NA,73,361,46.24,other,nondiurnal,Rhinella_icterica
+Anura,Centrolenidae,Cochranella_granulosa,unknown,Yovanovich et al. (2020),literature,unknown,NA,96,380,29.43,scansorial,nondiurnal,Cochranella_granulosa
+Anura,Centrolenidae,Teratohyla_spinosa,unknown,Yovanovich et al. (2020),literature,unknown,NA,95,379,31.2,scansorial,nondiurnal,Teratohyla_spinosa
+Anura,Craugastoridae,Craugastor_fitzingeri,unknown,Yovanovich et al. (2020),literature,unknown,NA,93,360,55.3,scansorial,nondiurnal,Craugastor_fitzingeri
+Anura,Cycloramphidae,Thoropa_taophora,unknown,Yovanovich et al. (2020),literature,unknown,NA,94,343,60.79,other,nondiurnal,Thoropa_taophora
+Anura,Dendrobatidae,Adelphobates_castaneoticus,unknown,Yovanovich et al. (2020),literature,unknown,NA,87,416,NA,other,diurnal,Adelphobates_castaneoticus
+Anura,Dendrobatidae,Dendrobates_auratus,unknown,Yovanovich et al. (2020),literature,unknown,NA,80,421,11.94,other,diurnal,Dendrobates_auratus
+Anura,Dendrobatidae,Oophaga_pumilio,unknown,Yovanovich et al. (2020),literature,unknown,NA,81,425,6.88,other,diurnal,Oophaga_pumilio
+Anura,Hylidae,Boana_geographica,unknown,Yovanovich et al. (2020),literature,unknown,NA,96,393,NA,scansorial,nondiurnal,Boana_geographica
+Anura,Hylidae,Boana_rosenbergi,unknown,Yovanovich et al. (2020),literature,unknown,NA,92,399,7.54,scansorial,nondiurnal,Boana_rosenbergi
+Anura,Hylidae,Bokermannohyla_astartea,unknown,Yovanovich et al. (2020),literature,unknown,NA,92,392,NA,scansorial,nondiurnal,Bokermannohyla_astartea
+Anura,Hylidae,Bokermannohyla_hylax,unknown,Yovanovich et al. (2020),literature,unknown,NA,83,395,NA,scansorial,nondiurnal,Bokermannohyla_hylax
+Anura,Hylidae,Dendropsophus_ebraccatus,unknown,Yovanovich et al. (2020),literature,unknown,NA,88,394,15.7,scansorial,nondiurnal,Dendropsophus_ebraccatus
+Anura,Hylidae,Dendropsophus_microcephalus,unknown,Yovanovich et al. (2020),literature,unknown,NA,98,391,17.34,scansorial,nondiurnal,Dendropsophus_microcephalus
+Anura,Hylidae,Scinax_ruber,unknown,Yovanovich et al. (2020),literature,unknown,NA,86,397,10.38,scansorial,nondiurnal,Scinax_ruber
+Anura,Hylidae,Xenohyla_truncata,unknown,Yovanovich et al. (2020),literature,unknown,NA,90,388,NA,scansorial,nondiurnal,Xenohyla_truncata
+Anura,Hylodidae,Hylodes_asper,unknown,Yovanovich et al. (2020),literature,unknown,NA,99,411,NA,other,diurnal,Hylodes_asper
+Anura,Hylodidae,Hylodes_phyllodes,unknown,Yovanovich et al. (2020),literature,unknown,NA,87,418,9.31,other,diurnal,Hylodes_phyllodes
+Anura,Hylodidae,Hylodes_pipilans,unknown,Yovanovich et al. (2020),literature,unknown,NA,81,415,NA,other,diurnal,Hylodes_pipilans
+Anura,Leptodactylidae,Engystomops_pustulosus,unknown,Yovanovich et al. (2020),literature,unknown,NA,96,324,81.43,other,nondiurnal,Engystomops_pustulosus
+Anura,Leptodactylidae,Leptodactylus_fragilis,unknown,Yovanovich et al. (2020),literature,unknown,NA,93,372,36.06,other,nondiurnal,Leptodactylus_fragilis
+Anura,Leptodactylidae,Leptodactylus_insularum,unknown,Yovanovich et al. (2020),literature,unknown,NA,92,380,25.78,other,nondiurnal,Leptodactylus_insularum
+Anura,Leptodactylidae,Leptodactylus_tapiti,unknown,Yovanovich et al. (2020),literature,unknown,NA,82,376,NA,other,nondiurnal,Leptodactylus_tapiti
+Anura,Leptodactylidae,Physalaemus_cuvieri,unknown,Yovanovich et al. (2020),literature,unknown,NA,85,390,17.07,other,nondiurnal,Physalaemus_cuvieri
+Anura,Microhylidae,Elachistocleis_panamensis,unknown,Yovanovich et al. (2020),literature,unknown,NA,94,319,84.54,other,nondiurnal,Elachistocleis_panamensis
+Anura,Phyllomedusidae,Agalychnis_callidryas,unknown,Yovanovich et al. (2020),literature,unknown,NA,96,385,27.78,scansorial,nondiurnal,Agalychnis_callidryas
+Anura,Phyllomedusidae,Pithecopus_hypochondrialis,unknown,Yovanovich et al. (2020),literature,unknown,NA,88,382,NA,scansorial,nondiurnal,Pithecopus_hypochondrialis
