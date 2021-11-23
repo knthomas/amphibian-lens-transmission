@@ -1,9 +1,10 @@
 ---
 title: "mvMORPH: Habitat + Lens Size"
 author: "H. Christoph Liedtke"
-date: "21/05/2021"
+date: "21 May 2021"
 output:
   html_document:
+    keep_md: true
     theme: flatly
     highlight: breezedark
     toc: true
