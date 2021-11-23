@@ -4,6 +4,7 @@ author: "Katie Thomas"
 date: "08 Nov 2021"
 output:
   html_document:
+    keep_md: true
     theme: cerulean
     toc: TRUE
     toc_float: TRUE
