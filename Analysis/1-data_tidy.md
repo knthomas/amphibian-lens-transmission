@@ -1126,7 +1126,7 @@ lens_traits <- left_join(lenses, traits, by="genus_species")
 
 # Convert to Frost (2021) phylogeny
 
-Here, we use the AmhpiNom package to add a column showing names according to Amphibian Species of the World (Frosg, 2021). This will allow us to match up species with those in the phylogeny even if different synonyms have been used. 
+Here, we use the AmphiNom package to add a column showing names according to Amphibian Species of the World (Frosg, 2021). This will allow us to match up species with those in the phylogeny even if different synonyms have been used. 
 
 
 ```r
